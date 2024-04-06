@@ -28,6 +28,7 @@ runs:
 
   - name: Check if branch version is needed
     id: needs-branch-version
+    shell: bash
     run: |
       currentBranch="${GITHUB_REF_NAME}"
       echo "Current branch: '$currentBranch'"
@@ -42,6 +43,7 @@ runs:
 
   - name: Get project version
     id: get-project-version
+    shell: bash
     run: |
       projectVersion=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file ${{ inputs.mavenWorkDir }}/pom.xml)
       echo "Project version: $projectVersion"
