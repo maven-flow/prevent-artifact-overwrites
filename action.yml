@@ -1,0 +1,49 @@
+name: "Maven Flow Manage Versions"
+description: "Manages versions of Maven artifacts to avoid version conflicts between branches in Git Flow"
+inputs:
+  git-user-name:
+    description: "GIT user name (to commit changes)"
+    default: "github-actions[bot]"
+    required: false
+    type: string
+  git-user-email:
+    description: "GIT user email (to commit changes)"
+    default: "github-actions[bot]@users.noreply.github.com"
+    required: false
+    type: string
+  pom-file:
+    description: "Maven POM file"
+    default: "pom.xml"
+    required: false
+    type: string
+
+outputs:
+  changes-made:
+    description: "Whether this action modified any files"
+    value: ${{ steps.random-number-generator.outputs.random-number }}
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: Check if branch version is needed
+    id: needs-branch-version
+    run: |
+      currentBranch="${GITHUB_REF_NAME}"
+      echo "Current branch: '$currentBranch'"
+
+      if [[ $currentBranch == "main" || $currentBranch == "master" || $currentBranch == "develop" || $currentBranch == release/* ]]; then
+          needsBranchVersion=false
+      else
+          needsBranchVersion=true
+      fi
+      echo "Needs branch version: $needsBranchVersion"
+      echo "needs=$needsBranchVersion" >> $GITHUB_OUTPUT
+
+  - name: Get project version
+    id: get-project-version
+    run: |
+      projectVersion=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file ${{ inputs.mavenWorkDir }}/pom.xml)
+      echo "Project version: $projectVersion"
+      echo "version=$projectVersion" >> $GITHUB_OUTPUT
+
