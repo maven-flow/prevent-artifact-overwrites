@@ -45,7 +45,7 @@ runs:
     id: get-project-version
     shell: bash
     run: |
-      projectVersion=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file ${{ inputs.mavenWorkDir }}/pom.xml)
+      projectVersion=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file ${{ inputs.pom-file }})
       echo "Project version: $projectVersion"
       echo "version=$projectVersion" >> $GITHUB_OUTPUT
 
