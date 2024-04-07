@@ -124,10 +124,12 @@ runs:
 
       while IFS= read -r line; do
         if [[ "$line" =~ $lineRegexp ]]; then
-          echo ""
-          echo "Checking dependency: $line"
 
-          IFS=':' read -ra lineParts <<< "$line"
+          trimmedLine="${line#"${line%%[![:space:]]*}"}" # remove leading spaces from line
+          echo ""
+          echo "Checking dependency: $trimmedLine"
+
+          IFS=':' read -ra lineParts <<< "$trimmedLine"
 
           group="${lineParts[0]}"
           artifact="${lineParts[1]}"
