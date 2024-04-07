@@ -24,6 +24,11 @@ inputs:
     default: "pom.xml"
     required: false
     type: string
+  user:
+    description: "A GitHub user to access private Maven repositories (if needed)"
+    default: ""
+    required: false
+    type: string
   token:
     description: "A GitHub token to access private Maven repositories (if needed)"
     default: ""
@@ -106,7 +111,8 @@ runs:
     if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
     shell: bash
     env:
-      DEPLOY_GITHUB_TOKEN: ${{ inputs.token }}
+      USER: ${{ inputs.user }}
+      TOKEN: ${{ inputs.token }}
     run: |
       changesMade=false
       tempFile=$(mktemp)
