@@ -81,7 +81,7 @@ runs:
         prefix=$(echo "$projectVersion" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
         newVersion="$prefix-SNAPSHOT"
         echo "New version: $newVersion"
-        mvn -B versions:set -DnewVersion="$newVersion" versions:commit
+        mvn -B versions:set -DnewVersion="$newVersion" versions:commit --file ${{ inputs.pom-file }}
 
         git commit -a -m "Switched to non branch-specific version."
       fi
