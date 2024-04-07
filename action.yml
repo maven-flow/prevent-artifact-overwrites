@@ -90,3 +90,49 @@ runs:
 
         git commit -a -m "Switched to non branch-specific version."
       fi
+
+  - name: Remove dependency branch versions
+    id: remove-dependency-branch-versions
+    if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
+    env:
+      GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN }}
+    run: |
+      changesMade=false
+      tempFile=$(mktemp)
+      mvn -B dependency:list -DexcludeTransitive=true -DoutputFile="$tempFile" --file ${{ inputs.pom-file }}
+
+      versionRegexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
+
+      lineRegexp="^([^:]+:){4}[^:]+$"
+
+      while IFS= read -r line; do
+        if [[ "$line" =~ $lineRegexp ]]; then
+          echo ""
+          echo "Checking dependency: $line"
+
+          IFS=':' read -ra lineParts <<< "$line"
+
+          group="${lineParts[0]}"
+          artifact="${lineParts[1]}"
+          version="${lineParts[3]}"
+
+          if [[ $version =~ $versionRegexp ]]; then
+            echo "Found a branch-specific version for ${group}:${artifact}. I will remove it."
+
+            prefix=$(echo "$version" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
+            newVersion="$prefix-SNAPSHOT"
+            echo "New version: $newVersion"
+
+            mvn -B versions:use-dep-version -DprocessProperties=true -Dincludes=${group}:${artifact} -DdepVersion=${newVersion} -DforceVersion=true --file ${{ inputs.pom-file }}
+
+            changesMade=true
+          fi
+        fi
+      done < "$tempFile"
+
+      if [ "$changesMade" = true ]; then
+        git commit -a -m "Switched to non branch dependency versions."
+        echo "changes-made=true" >> $GITHUB_OUTPUT
+      else
+        echo "changes-made=false" >> $GITHUB_OUTPUT
+      fi
