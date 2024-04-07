@@ -44,7 +44,7 @@ runs:
     shell: bash
     run: |
       currentBranch="${GITHUB_REF_NAME}"
-      echo "Current branch: '$currentBranch'"
+      echo "Current branch: '$currentBranch' '${{ inputs.token }}'"
 
       if [[ $currentBranch == "main" || $currentBranch == "master" || $currentBranch == "develop" || $currentBranch == release/* ]]; then
           needsBranchVersion=false
