@@ -1,6 +1,9 @@
 name: "Maven Flow Manage Versions"
 description: "Manages versions of Maven artifacts to avoid version conflicts between branches in Git Flow"
 inputs:
+  enforce-branch-version:
+    required: true
+    type: boolean
   git-user-name:
     description: "GIT user name (to commit changes)"
     default: "github-actions[bot]"
@@ -21,6 +24,9 @@ outputs:
   changes-made:
     description: "Whether this action modified any files"
     value: ${{ steps.random-number-generator.outputs.random-number }}
+
+env:
+  BRANCH_VERSION_REGEX: "^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$"
 
 runs:
   using: "composite"
@@ -49,3 +55,31 @@ runs:
       echo "Project version: $projectVersion"
       echo "version=$projectVersion" >> $GITHUB_OUTPUT
 
+  - name: Enforce branch version
+    if: ${{ (inputs.enforce-branch-version) && (steps.needs-branch-version.outputs.needs == 'true') }} # step outputs are always strings
+    run: |
+      projectVersion=${{ steps.get-project-version.outputs.version }}
+
+      if [[ $projectVersion =~ $BRANCH_VERSION_REGEX ]]; then
+        echo "Project does have a branch version."
+      else
+        echo "ERROR: Set a branch version to avoid conflicts with main/develop branch. Examples: 1.2.3-JBRFE-SNAPSHOT, 1.2.3-BUG-458-SNAPSHOT, 1.2.3-rc.1-JBRFE-SNAPSHOT, 1.2.3-rc.1-BUG-458-SNAPSHOT";
+        exit 1;
+      fi
+
+  - name: Remove branch version
+    id: remove-branch-version
+    if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
+    run: |
+      projectVersion=${{ steps.get-project-version.outputs.version }}
+
+      if [[ $projectVersion =~ $BRANCH_VERSION_REGEX ]]; then
+        echo "Project does have a branch version. I will remove it, since we are on main/develop/release branch."
+
+        prefix=$(echo "$projectVersion" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
+        newVersion="$prefix-SNAPSHOT"
+        echo "New version: $newVersion"
+        mvn -B versions:set -DnewVersion="$newVersion" versions:commit
+
+        git commit -a -m "Switched to non branch-specific version."
+      fi
