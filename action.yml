@@ -66,6 +66,11 @@ runs:
         exit 1;
       fi
 
+  - name: Set up GIT
+    run: |
+      git config --local user.name '${{ inputs.git-user-name }}'
+      git config --local user.email '${{ inputs.git-user-email }}'
+
   - name: Remove branch version
     id: remove-branch-version
     if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
