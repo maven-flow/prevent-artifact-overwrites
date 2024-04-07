@@ -24,9 +24,6 @@ inputs:
     default: "pom.xml"
     required: false
     type: string
-  secrets:
-    DEPLOY_GITHUB_TOKEN:
-      required: true
 
 outputs:
   changes-made:
@@ -103,8 +100,6 @@ runs:
     id: remove-dependency-branch-versions
     if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
     shell: bash
-    env:
-      GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN }}
     run: |
       changesMade=false
       tempFile=$(mktemp)
