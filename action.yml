@@ -24,16 +24,6 @@ inputs:
     default: "pom.xml"
     required: false
     type: string
-  user:
-    description: "A GitHub user to access private Maven repositories (if needed)"
-    default: ""
-    required: false
-    type: string
-  token:
-    description: "A GitHub token to access private Maven repositories (if needed)"
-    default: ""
-    required: false
-    type: string
 
 outputs:
   changes-made:
@@ -110,9 +100,6 @@ runs:
     id: remove-dependency-branch-versions
     if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
     shell: bash
-    env:
-      USER: ${{ inputs.user }}
-      TOKEN: ${{ inputs.token }}
     run: |
       changesMade=false
       tempFile=$(mktemp)
