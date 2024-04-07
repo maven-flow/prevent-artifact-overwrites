@@ -57,6 +57,7 @@ runs:
 
   - name: Enforce branch version
     if: ${{ (inputs.enforce-branch-version) && (steps.needs-branch-version.outputs.needs == 'true') }} # step outputs are always strings
+    shell: bash
     run: |
       projectVersion=${{ steps.get-project-version.outputs.version }}
 
@@ -70,6 +71,7 @@ runs:
   - name: Remove branch version
     id: remove-branch-version
     if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
+    shell: bash
     run: |
       projectVersion=${{ steps.get-project-version.outputs.version }}
 
