@@ -14,6 +14,11 @@ inputs:
     default: "github-actions[bot]@users.noreply.github.com"
     required: false
     type: string
+  maven-args:
+    description: "Additional arguments to pass to Maven commands"
+    default: ""
+    required: false
+    type: string
   pom-file:
     description: "Maven POM file"
     default: "pom.xml"
@@ -48,7 +53,7 @@ runs:
     id: get-project-version
     shell: bash
     run: |
-      projectVersion=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file ${{ inputs.pom-file }})
+      projectVersion=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file ${{ inputs.pom-file }} ${{ inputs.maven-args }})
       echo "Project version: $projectVersion"
       echo "version=$projectVersion" >> $GITHUB_OUTPUT
 
@@ -86,7 +91,7 @@ runs:
         prefix=$(echo "$projectVersion" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
         newVersion="$prefix-SNAPSHOT"
         echo "New version: $newVersion"
-        mvn -B versions:set -DnewVersion="$newVersion" versions:commit --file ${{ inputs.pom-file }}
+        mvn -B versions:set -DnewVersion="$newVersion" versions:commit --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
 
         git commit -a -m "Switched to non branch-specific version."
       fi
@@ -98,7 +103,7 @@ runs:
     run: |
       changesMade=false
       tempFile=$(mktemp)
-      mvn -B dependency:list -DexcludeTransitive=true -DoutputFile="$tempFile" --file ${{ inputs.pom-file }}
+      mvn -B dependency:list -DexcludeTransitive=true -DoutputFile="$tempFile" --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
 
       versionRegexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
 
@@ -122,7 +127,7 @@ runs:
             newVersion="$prefix-SNAPSHOT"
             echo "New version: $newVersion"
 
-            mvn -B versions:use-dep-version -DprocessProperties=true -Dincludes=${group}:${artifact} -DdepVersion=${newVersion} -DforceVersion=true --file ${{ inputs.pom-file }}
+            mvn -B versions:use-dep-version -DprocessProperties=true -Dincludes=${group}:${artifact} -DdepVersion=${newVersion} -DforceVersion=true --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
 
             changesMade=true
           fi
