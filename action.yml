@@ -67,6 +67,7 @@ runs:
       fi
 
   - name: Set up GIT
+    shell: bash
     run: |
       git config --local user.name '${{ inputs.git-user-name }}'
       git config --local user.email '${{ inputs.git-user-email }}'
