@@ -40,7 +40,7 @@ runs:
   steps:
 
   - uses: s4u/maven-settings-action@v3.0.0
-    if: ${{ inputs.maven-servers != "" }}
+    if: ${{ inputs.maven-servers != '' }}
     with:
       servers: ${{ inputs.maven-servers }}
 
