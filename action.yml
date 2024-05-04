@@ -1,5 +1,5 @@
 name: "Maven Flow Manage Versions"
-description: "Manages versions of Maven artifacts to avoid version conflicts between branches in Git Flow"
+description: "Prevent Maven artifact overwrites from feature branches when using Git Flow"
 inputs:
   enforce-branch-version:
     required: true
