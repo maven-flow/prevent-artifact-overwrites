@@ -1,6 +1,11 @@
 name: "Maven Flow Manage Versions"
 description: "Prevent Maven artifact overwrites from feature branches when using Git Flow"
 inputs:
+  commit-message-suffix:
+    description: "Text to add to the end of commit messages."
+    default: ""
+    required: false
+    type: string
   enforce-branch-version:
     required: true
     type: boolean
@@ -83,7 +88,7 @@ runs:
         newVersion="${versionWithoutSnapshot}-${branchPostfix}-SNAPSHOT"
         echo "Project does not have a branch version. I will change it automatically to ${newVersion}";
         mvn -B versions:set -DnewVersion="$newVersion" -DgenerateBackupPoms=false --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
-        git commit -a -m "Switched to branch-specific version."
+        git commit -a -m "Switched to branch-specific version.${{ inputs.commit-message-suffix }}"
         echo "changes-made=true" >> $GITHUB_OUTPUT
       fi
 
@@ -103,7 +108,7 @@ runs:
         echo "New version: $newVersion"
         mvn -B versions:set -DnewVersion="$newVersion" versions:commit --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
 
-        git commit -a -m "Switched to non branch-specific version."
+        git commit -a -m "Switched to non branch-specific version.${{ inputs.commit-message-suffix }}"
         echo "changes-made=true" >> $GITHUB_OUTPUT
       else
         echo "changes-made=false" >> $GITHUB_OUTPUT
@@ -150,7 +155,7 @@ runs:
       done < "$tempFile"
 
       if [ "$changesMade" = true ]; then
-        git commit -a -m "Switched to non branch dependency versions."
+        git commit -a -m "Switched to non branch dependency versions.${{ inputs.commit-message-suffix }}"
         echo "changes-made=true" >> $GITHUB_OUTPUT
       else
         echo "changes-made=false" >> $GITHUB_OUTPUT
