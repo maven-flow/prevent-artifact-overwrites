@@ -28,7 +28,7 @@ inputs:
 outputs:
   changes-made:
     description: "Whether this action modified any files"
-    value: ${{ steps.random-number-generator.outputs.random-number }}
+    value: ${{ steps.sumarize-changes.outputs.changes-made }}
 
 runs:
   using: "composite"
@@ -64,6 +64,7 @@ runs:
       git config --local user.email '${{ inputs.git-user-email }}'
 
   - name: Enforce branch version
+    id: enforce-branch-version
     if: ${{ (inputs.enforce-branch-version) && (steps.needs-branch-version.outputs.needs == 'true') }} # step outputs are always strings
     shell: bash
     run: |
@@ -72,6 +73,7 @@ runs:
 
       if [[ $projectVersion =~ $versionRegexp ]]; then
         echo "Project does have a branch version."
+        echo "changes-made=false" >> $GITHUB_OUTPUT
       else
         branchPostfix=$(echo "${GITHUB_REF_NAME}" | tr / -)
         versionWithoutSnapshot="${projectVersion%-SNAPSHOT}"
@@ -79,6 +81,7 @@ runs:
         echo "Project does not have a branch version. I will change it automatically to ${newVersion}";
         mvn -B versions:set -DnewVersion="$newVersion" -DgenerateBackupPoms=false --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
         git commit -a -m "Switched to branch-specific version."
+        echo "changes-made=true" >> $GITHUB_OUTPUT
       fi
 
   - name: Remove branch version
@@ -98,6 +101,9 @@ runs:
         mvn -B versions:set -DnewVersion="$newVersion" versions:commit --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
 
         git commit -a -m "Switched to non branch-specific version."
+        echo "changes-made=true" >> $GITHUB_OUTPUT
+      else
+        echo "changes-made=false" >> $GITHUB_OUTPUT
       fi
 
   - name: Remove dependency branch versions
@@ -142,6 +148,16 @@ runs:
 
       if [ "$changesMade" = true ]; then
         git commit -a -m "Switched to non branch dependency versions."
+        echo "changes-made=true" >> $GITHUB_OUTPUT
+      else
+        echo "changes-made=false" >> $GITHUB_OUTPUT
+      fi
+
+  - name: Sumarize changes
+    id: sumarize-changes
+    shell: bash
+    run: |
+      if [[ "${{ steps.enforce-branch-version.outputs.changes-made }}" = "true" || "${{ steps.remove-branch-version.outputs.changes-made }}" = "true" || "${{ steps.remove-dependency-branch-versions.outputs.changes-made }}" = "true" ]]; then
         echo "changes-made=true" >> $GITHUB_OUTPUT
       else
         echo "changes-made=false" >> $GITHUB_OUTPUT
