@@ -24,6 +24,9 @@ inputs:
     default: "pom.xml"
     required: false
     type: string
+  push-changes:
+    required: true
+    type: boolean
 
 outputs:
   changes-made:
@@ -164,3 +167,8 @@ runs:
         echo "No changes have been made."
         echo "changes-made=false" >> $GITHUB_OUTPUT
       fi
+
+  - name: Push changes
+    if: ${{ (inputs.push-changes) && (steps.sumarize-changes.outputs.changes-made == 'true') }} # step outputs are always strings
+    shell: bash
+    run: git push
