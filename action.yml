@@ -158,7 +158,9 @@ runs:
     shell: bash
     run: |
       if [[ "${{ steps.enforce-branch-version.outputs.changes-made }}" = "true" || "${{ steps.remove-branch-version.outputs.changes-made }}" = "true" || "${{ steps.remove-dependency-branch-versions.outputs.changes-made }}" = "true" ]]; then
+        echo "Changes have been made."
         echo "changes-made=true" >> $GITHUB_OUTPUT
       else
+        echo "No changes have been made."
         echo "changes-made=false" >> $GITHUB_OUTPUT
       fi
