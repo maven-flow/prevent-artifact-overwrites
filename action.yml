@@ -77,6 +77,9 @@ runs:
     shell: bash
     run: |
 
+      # This condition needs to be inside the script (not in "if" field), because GitHub is unable to properly implement boolean inputs.
+      # https://github.com/actions/runner/issues/2238
+
       if [ "${{ inputs.enforce-branch-version }}" = "false" ]; then
         echo "Project version enforcement is turned off."
         exit 0
