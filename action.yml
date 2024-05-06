@@ -71,6 +71,11 @@ runs:
       git config --local user.name '${{ inputs.git-user-name }}'
       git config --local user.email '${{ inputs.git-user-email }}'
 
+  - name: Debug log
+    shell: bash
+    run: |
+      echo: "Enforce branch version input: ${{ (inputs.enforce-branch-version }}"
+
   - name: Enforce branch version
     id: enforce-branch-version-step
     if: ${{ (inputs.enforce-branch-version == 'true') && (steps.needs-branch-version.outputs.needs == 'true') }} # step outputs are always strings
