@@ -72,8 +72,8 @@ runs:
       git config --local user.email '${{ inputs.git-user-email }}'
 
   - name: Enforce branch version
-    id: enforce-branch-version
-    if: ${{ (inputs.enforce-branch-version) && (steps.needs-branch-version.outputs.changes-made == 'true') }} # step outputs are always strings
+    id: enforce-branch-version-step
+    if: ${{ (inputs.enforce-branch-version) && (steps.needs-branch-version.outputs.needs == 'true') }} # step outputs are always strings
     shell: bash
     run: |
       versionRegexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
@@ -165,7 +165,7 @@ runs:
     id: sumarize-changes
     shell: bash
     run: |
-      if [[ "${{ steps.enforce-branch-version.outputs.changes-made }}" = "true" || "${{ steps.remove-branch-version.outputs.changes-made }}" = "true" || "${{ steps.remove-dependency-branch-versions.outputs.changes-made }}" = "true" ]]; then
+      if [[ "${{ steps.enforce-branch-version-step.outputs.changes-made }}" = "true" || "${{ steps.remove-branch-version.outputs.changes-made }}" = "true" || "${{ steps.remove-dependency-branch-versions.outputs.changes-made }}" = "true" ]]; then
         echo "Changes have been made."
         echo "changes-made=true" >> $GITHUB_OUTPUT
       else
