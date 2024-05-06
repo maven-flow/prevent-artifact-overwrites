@@ -77,7 +77,7 @@ runs:
     shell: bash
     run: |
 
-      if [ "${{ inputs.enforce-branch-version }}" = false ]; then
+      if [ "${{ inputs.enforce-branch-version }}" = "false" ]; then
         exit 0
       fi
 
