@@ -74,7 +74,7 @@ runs:
   - name: Debug log
     shell: bash
     run: |
-      echo: "Enforce branch version input: ${{ (inputs.enforce-branch-version }}"
+      echo: "Enforce branch version input: ${{ inputs.enforce-branch-version }}"
 
   - name: Enforce branch version
     id: enforce-branch-version-step
