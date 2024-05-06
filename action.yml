@@ -183,6 +183,14 @@ runs:
       fi
 
   - name: Push changes
-    if: ${{ (inputs.push-changes) && (steps.sumarize-changes.outputs.changes-made == 'true') }} # step outputs are always strings
+    if: steps.sumarize-changes.outputs.changes-made == 'true' # step outputs are always strings
     shell: bash
-    run: git push
+    run: |
+
+      # This condition needs to be inside the script (not in "if" field), because GitHub is unable to properly implement boolean inputs.
+      # https://github.com/actions/runner/issues/2238
+
+      if [ "${{ inputs.push-changes }}" = "true" ]; then
+        echo "Pushing changes:"
+        git push
+      fi
