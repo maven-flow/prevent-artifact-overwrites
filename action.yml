@@ -78,6 +78,7 @@ runs:
     run: |
 
       if [ "${{ inputs.enforce-branch-version }}" = "false" ]; then
+        echo "Project version enforcement is turned off."
         exit 0
       fi
 
