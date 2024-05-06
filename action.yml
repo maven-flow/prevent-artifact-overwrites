@@ -73,7 +73,7 @@ runs:
 
   - name: Enforce branch version
     id: enforce-branch-version-step
-    if: ${{ (inputs.enforce-branch-version == 'true') && (steps.needs-branch-version.outputs.needs == 'true') }}    # step outputs are always strings
+    if: ${{ (inputs.enforce-branch-version) && (steps.needs-branch-version.outputs.needs == 'true') }}    # step outputs are always strings
     shell: bash
     run: |
       versionRegexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
