@@ -49,7 +49,7 @@ runs:
       currentBranch="${GITHUB_REF_NAME}"
       echo "Current branch: '$currentBranch'"
 
-      if [[ $currentBranch == "main" || $currentBranch == "master" || $currentBranch == "develop" || $currentBranch == release/* ]]; then
+      if [[ $currentBranch == "main" || $currentBranch == "master" || $currentBranch == "develop" || $currentBranch == release* ]]; then
           needsBranchVersion=false
       else
           needsBranchVersion=true
