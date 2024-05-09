@@ -126,6 +126,7 @@ runs:
   - name: Remove dependency branch versions
     id: remove-dependency-branch-versions
     if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
+    continue-on-error: true
     shell: bash
     run: |
       changesMade=false
