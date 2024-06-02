@@ -1,5 +1,5 @@
-name: "Maven Flow Manage Versions"
-description: "Prevent Maven artifact overwrites from feature branches when using Git Flow"
+name: "Prevent Maven Artifact Overwrites"
+description: "Prevent overwriting Maven artifact versions from feature branches."
 inputs:
   commit-message-suffix:
     description: "Text to add to the end of commit messages."
