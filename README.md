@@ -1,6 +1,6 @@
 # Prevent Overwriting Maven Artifact Versions From Feature Branches
 
-Since Apache Maven does not have native support for building SNAPSHOT artifact versions from different branches, you can run into anoying problems when developing projects with Git Flow.
+Since Apache Maven does not have native support for building SNAPSHOT artifact versions from different branches, you can run into annoying problems when developing projects with Git Flow.
 
 ### Example Problem
 
@@ -10,7 +10,7 @@ Since Apache Maven does not have native support for building SNAPSHOT artifact v
 
 - You implement the breaking API change in `feature/foo` of both `my-lib` and `my-app` and your CI build runs OK.
 
-- The problem is, that the next build on `develop` branch in `my-app` will fail with a compilation error, because the original version `1.1.0-SNAPSHOT` of `my-lib`, got overwriten in the Maven repository by the same version from `feature/foo` (with the breaking API change).
+- The problem is, that the next build on `develop` branch in `my-app` will fail with a compilation error, because the original version `1.1.0-SNAPSHOT` of `my-lib`, got overwritten in the Maven repository by the same version from `feature/foo` (with the breaking API change).
 
 - This could be fixed by running the build of `my-lib` on `develop` again, but that would break the build of `my-app` on `feature/foo`.
 
