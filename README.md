@@ -1,31 +1,33 @@
 # Prevent Overwriting Maven Artifact Versions From Feature Branches
 
-Since Apache Maven does not have native support for building SNAPSHOT artifact versions from different branches, you can run into annoying problems when developing projects with Git Flow.
+When using [Git Flow](https://nvie.com/posts/a-successful-git-branching-model/) to develop library projects with Maven, you often run in to a problem, that SNAPSHOT artifacts from develop and different feature branches overwrite each-other in the Maven repository, which leads to random compilation errors.
 
-### Example Problem
+You can solve this by changing the project version into a unique value for every feature branch. For example changing the version `1.1.0-SNAPSHOT` into `1.1.0-cool-feature-SNAPSHOT`. That way, the branches do not interfere with each other.
 
-- You are developing an application called `my-app` which uses a library called `my-lib`. According to Git Flow, you are developing on the `develop` branch, where the version of `my-lib` is currently `1.1.0-SNAPSHOT`. The same version is used in `my-app` as a dependency.
+Changing the versions manually is annoying, time-consuming, and most importantly - people always keep forgetting. Over the years, the internet has come up with [many solutions](https://stackoverflow.com/questions/13583953/deriving-maven-artifact-version-from-git-branch), but they always require some complicated setup on every developer's machine (Git hooks or extensions) and/or do not work well with IDEs (Maven plugins changing the version at compile-time).
 
-- You are creating a new feature, which requires a breaking change in the `my-lib` API. So you create a branch named `feature/foo` both in `my-lib` and `my-app`.
-
-- You implement the breaking API change in `feature/foo` of both `my-lib` and `my-app` and your CI build runs OK.
-
-- The problem is, that the next build on `develop` branch in `my-app` will fail with a compilation error, because the original version `1.1.0-SNAPSHOT` of `my-lib`, got overwritten in the Maven repository by the same version from `feature/foo` (with the breaking API change).
-
-- This could be fixed by running the build of `my-lib` on `develop` again, but that would break the build of `my-app` on `feature/foo`.
-
-- You are now in a state when your builds are failing randomly, depending on which branch of `my-lib` was built last. If you are using more than 1 feature branch simultaneously, the problem gets even worse.
-
-This GitHub action attempts to solve this problem in the most simple and convenient way possible.
+This Github action automates the process on a CI/CD level, which brings several benefits:
+- No special setup required on the developer's machine
+- Works seamlessly with any IDE and with Maven CLI (since the version is changed directly in pom.xml)
 
 ## How It Works
 
-### Change to Branch-Specific Version on Feature Branches
+Add a step using this action into your workflow *before* the Maven build step. Do this for your library project (the project whose version needs to change), and also for your application project (the project which uses the library).
 
+The action performs different task based on the type of project it is running on:
 
-### Change to Non Branch-Specific Version in Regular Branches
+### When Running on a Library
 
+Set the value of parameter `enforce-branch-version` to `true`.
 
-### Change Dependency Versions
+If the action detects it is running on a feature branch, it will append the branch name to the project version with slashes replaced by hyphens. For example, when running on a branch named `feature/FEA-123-comments`, the version will be changed from `1.1.0-SNAPSHOT` into `1.1.0-feature-FEA-123-comments-SNAPSHOT`. You can also change the version manually into a different value, for example `1.1.0-FEA-123-SNAPSHOT`.
 
+When running on a non-feature branch, the action will change the branch-specific version back into the original value. This means that you don't have to worry about removing the version postfix, when you want to merge your feature branch into `develop`. You can just merge the modified version, and the postfix will be removed automatically.
 
+The action changes the project version in the `pom.xml` file, and commits and pushes the changes into GIT.
+
+### When Running on an Application
+
+Set the value of parameter `enforce-branch-version` to `true`.
+
+When running on a non-feature branch, the action will check versions of all dependencies and if it finds a branch-specific version of a dependency, it will change it back to it's original value. As in the case of running on a library, this also means that you don't have to worry about changing the dependency versions when merging into `develop`.
