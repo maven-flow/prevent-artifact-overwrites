@@ -12,9 +12,9 @@ This Github action automates the process on a CI/CD level, which brings several 
 
 ## How It Works
 
-Add a step using this action into your workflow *before* the Maven build step. Do this for your library project (the project whose version needs to change), and also for your application project (the project which uses the library).
+Add a step using this action into your workflow **before** the Maven build step. Do this for your library project (the project whose version needs to change), and also for your application project (the project which uses the library).
 
-The action performs different task based on the type of project it is running on:
+The action performs different tasks based on the type of project it is running on:
 
 ### When Running on a Library
 
@@ -22,12 +22,12 @@ Set the value of parameter `enforce-branch-version` to `true`.
 
 If the action detects it is running on a feature branch, it will append the branch name to the project version with slashes replaced by hyphens. For example, when running on a branch named `feature/FEA-123-comments`, the version will be changed from `1.1.0-SNAPSHOT` into `1.1.0-feature-FEA-123-comments-SNAPSHOT`. You can also change the version manually into a different value, for example `1.1.0-FEA-123-SNAPSHOT`.
 
-When running on a non-feature branch, the action will change the branch-specific version back into the original value. This means that you don't have to worry about removing the version postfix, when you want to merge your feature branch into `develop`. You can just merge the modified version, and the postfix will be removed automatically.
+When running on a non-feature branch, the action will change the branch-specific version back into the original value. This means that you don't have to worry about removing the version postfix when you want to merge your feature branch into `develop`. You can just merge the modified version, and the postfix will be removed automatically.
 
 The action changes the project version in the `pom.xml` file, and commits and pushes the changes into GIT.
 
 ### When Running on an Application
 
-Set the value of parameter `enforce-branch-version` to `true`.
+Set the value of parameter `enforce-branch-version` to `false`.
 
-When running on a non-feature branch, the action will check versions of all dependencies and if it finds a branch-specific version of a dependency, it will change it back to it's original value. As in the case of running on a library, this also means that you don't have to worry about changing the dependency versions when merging into `develop`.
+When running on a non-feature branch, the action will check versions of all dependencies and if it finds a branch-specific version of a dependency, it will change it back to it's original value. As in the case of running on a library, this means that you don't have to worry about changing the dependency versions when merging into `develop`.
