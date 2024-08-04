@@ -110,7 +110,7 @@ jobs:
 
 ### `commit-message-suffix`
 
-**Optional.** A suffix that can be added to the commit message when this actions commits changes. For example, you could add `[skip ci]`if you want to prevent another workflow run after performing changes.
+**Optional.** A suffix that can be added to the commit message when committing changes. For example, you could add `[skip ci]`if you want to prevent another workflow run after performing changes.
 
 **Default value:** `""`
 
