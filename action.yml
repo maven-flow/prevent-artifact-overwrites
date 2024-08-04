@@ -1,5 +1,10 @@
 name: "Prevent Maven Artifact Overwrites"
 description: "Prevent overwriting Maven artifact versions from feature branches."
+
+branding:
+  icon: 'package'
+  color: 'blue'
+
 inputs:
   commit-message-suffix:
     description: "Text to add to the end of commit messages."
