@@ -1,5 +1,5 @@
 name: "Prevent Maven Artifact Overwrites"
-description: "Prevent overwriting Maven artifact versions from feature branches."
+description: "Prevent overwriting Maven artifacts from feature branches."
 
 branding:
   icon: 'package'

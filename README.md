@@ -1,4 +1,4 @@
-# Prevent Overwriting Maven Artifact Versions From Feature Branches
+# Prevent Overwriting Maven Artifacts from Feature Branches
 
 When using [Git Flow](https://nvie.com/posts/a-successful-git-branching-model/) to develop library projects with Maven, you often run in to a problem, that SNAPSHOT artifacts from develop and different feature branches overwrite each-other in the Maven repository, which leads to random compilation errors.
 
