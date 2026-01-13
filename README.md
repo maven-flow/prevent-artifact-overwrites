@@ -6,7 +6,7 @@ You can solve this by changing the project version into a unique value for every
 
 Changing the versions manually is annoying, time-consuming, and most importantly - people always keep forgetting. Over the years, the internet has come up with [many solutions](https://stackoverflow.com/questions/13583953/deriving-maven-artifact-version-from-git-branch), but they always require some complicated setup on every developer's machine (Git hooks or extensions) and/or do not work well with IDEs (Maven plugins changing the version at compile-time).
 
-This Github action automates the process on a CI/CD level, which brings several benefits:
+This CI/CD automation (available for both GitHub Actions and GitLab CI/CD) brings several benefits:
 - No special setup required on the developer's machine
 - Works seamlessly with any IDE and with Maven CLI (since the version is changed directly in pom.xml)
 
@@ -32,7 +32,7 @@ Set the value of parameter `enforce-branch-version` to `false`.
 
 When running on a non-feature branch, the action will check versions of all dependencies and if it finds a branch-specific version of a dependency, it will change it back to it's original value. As in the case of running on a library, this means that you don't have to worry about changing the dependency versions when merging into `develop`.
 
-## Usage
+## GitHub Actions Usage
 
 Preconditions:
 
@@ -141,3 +141,92 @@ jobs:
 **Optional.** Specify the path to Maven POM file. Useful for example if your POM file is not in the repository root.
 
 **Default value:** `pom.xml`
+
+## GitLab CI/CD Usage
+
+This tool is also available as a GitLab CI/CD Component.
+
+### Prerequisites
+
+- GitLab 17.0 or later (for CI/CD Components support)
+- Maven installed on the runner (or use a Maven Docker image)
+- Git push access configured (the `CI_JOB_TOKEN` is used by default)
+
+### Basic Configuration
+
+Add the following to your `.gitlab-ci.yml`:
+
+```yaml
+include:
+  - component: gitlab.com/maven-flow/prevent-artifact-overwrites/prevent-overwrites@v1
+    inputs:
+      enforce-branch-version: true
+      push-changes: true
+```
+
+### Full Configuration
+
+```yaml
+include:
+  - component: gitlab.com/maven-flow/prevent-artifact-overwrites/prevent-overwrites@v1
+    inputs:
+      enforce-branch-version: true
+      push-changes: true
+      commit-message-suffix: " [skip ci]"
+      git-user-name: "John Doe"
+      git-user-email: "john.doe@example.com"
+      maven-args: "-P gitlab"
+      pom-file: "subdir/pom.xml"
+      stage: "prepare"
+      image: "maven:3.9-eclipse-temurin-17"
+```
+
+### Example Pipeline
+
+```yaml
+stages:
+  - prepare
+  - build
+
+include:
+  - component: gitlab.com/maven-flow/prevent-artifact-overwrites/prevent-overwrites@v1
+    inputs:
+      enforce-branch-version: true
+      push-changes: true
+
+build:
+  stage: build
+  image: maven:3.9-eclipse-temurin-17
+  needs:
+    - job: prevent-overwrites
+      optional: true
+  script:
+    - mvn -B deploy
+```
+
+### GitLab CI/CD Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `enforce-branch-version` | Yes | - | Whether to enforce branch-specific versions |
+| `push-changes` | Yes | - | Whether to push changes to remote |
+| `commit-message-suffix` | No | `""` | Text appended to commit messages |
+| `git-user-name` | No | `gitlab-ci[bot]` | Git user name for commits |
+| `git-user-email` | No | `gitlab-ci[bot]@users.noreply.gitlab.com` | Git user email for commits |
+| `maven-args` | No | `""` | Additional Maven arguments |
+| `pom-file` | No | `pom.xml` | Path to Maven POM file |
+| `stage` | No | `prepare` | Pipeline stage for the job |
+| `image` | No | `maven:3.9-eclipse-temurin-17` | Docker image for the job |
+| `script-source` | No | GitHub raw URL | URL to fetch the script from |
+
+### Protected Branches
+
+If pushing to protected branches, you may need to:
+1. Allow the `CI_JOB_TOKEN` to push to protected branches in your project settings, or
+2. Use a project access token with write permissions
+
+### Self-Hosted GitLab
+
+If you're using a self-hosted GitLab instance, you can either:
+1. Mirror this repository to your GitLab instance and reference it as a component
+2. Override the `script-source` input to point to your internal URL

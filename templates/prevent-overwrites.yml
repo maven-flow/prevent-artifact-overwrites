@@ -1,0 +1,67 @@
+spec:
+  inputs:
+    enforce-branch-version:
+      type: boolean
+      description: "Whether to enforce branch-specific versions on feature branches"
+    push-changes:
+      type: boolean
+      description: "Whether to push changes to the remote repository"
+    commit-message-suffix:
+      type: string
+      default: ""
+      description: "Text to add to the end of commit messages (e.g., '[skip ci]')"
+    git-user-name:
+      type: string
+      default: "gitlab-ci[bot]"
+      description: "Git user name for commits"
+    git-user-email:
+      type: string
+      default: "gitlab-ci[bot]@users.noreply.gitlab.com"
+      description: "Git user email for commits"
+    maven-args:
+      type: string
+      default: ""
+      description: "Additional arguments to pass to Maven commands"
+    pom-file:
+      type: string
+      default: "pom.xml"
+      description: "Path to Maven POM file"
+    stage:
+      type: string
+      default: "prepare"
+      description: "Pipeline stage for this job"
+    image:
+      type: string
+      default: "maven:3.9-eclipse-temurin-17"
+      description: "Docker image to use for the job"
+    script-source:
+      type: string
+      default: "https://raw.githubusercontent.com/maven-flow/prevent-artifact-overwrites/v1/prevent-overwrites.sh"
+      description: "URL to fetch the prevent-overwrites.sh script from"
+---
+prevent-overwrites:
+  stage: $[[ inputs.stage ]]
+  image: $[[ inputs.image ]]
+  variables:
+    ENFORCE_BRANCH_VERSION: $[[ inputs.enforce-branch-version ]]
+    PUSH_CHANGES: $[[ inputs.push-changes ]]
+    COMMIT_MESSAGE_SUFFIX: $[[ inputs.commit-message-suffix ]]
+    GIT_USER_NAME: $[[ inputs.git-user-name ]]
+    GIT_USER_EMAIL: $[[ inputs.git-user-email ]]
+    MAVEN_ARGS: $[[ inputs.maven-args ]]
+    POM_FILE: $[[ inputs.pom-file ]]
+    SCRIPT_SOURCE: $[[ inputs.script-source ]]
+  before_script:
+    - |
+      # Configure git for pushing
+      git config --global user.name "$GIT_USER_NAME"
+      git config --global user.email "$GIT_USER_EMAIL"
+      # Set up git remote with CI job token for pushing
+      git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      # Fetch the script
+      curl -sSfL "$SCRIPT_SOURCE" -o /tmp/prevent-overwrites.sh
+      chmod +x /tmp/prevent-overwrites.sh
+  script:
+    - /tmp/prevent-overwrites.sh
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"

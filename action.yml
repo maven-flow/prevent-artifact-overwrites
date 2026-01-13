@@ -41,162 +41,23 @@ inputs:
 outputs:
   changes-made:
     description: "Whether this action modified any files"
-    value: ${{ steps.sumarize-changes.outputs.changes-made }}
+    value: ${{ steps.run-script.outputs.changes-made }}
 
 runs:
   using: "composite"
   steps:
-
-  - name: Check if branch version is needed
-    id: needs-branch-version
-    shell: bash
-    run: |
-      currentBranch="${GITHUB_REF_NAME}"
-      echo "Current branch: '$currentBranch'"
-
-      if [[ $currentBranch == "main" || $currentBranch == "master" || $currentBranch == "develop" || $currentBranch == release* ]]; then
-          needsBranchVersion=false
-      else
-          needsBranchVersion=true
-      fi
-      echo "Needs branch version: $needsBranchVersion"
-      echo "needs=$needsBranchVersion" >> $GITHUB_OUTPUT
-
-  - name: Get project version
-    id: get-project-version
-    shell: bash
-    run: |
-      projectVersion=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file ${{ inputs.pom-file }} ${{ inputs.maven-args }})
-      echo "Project version: $projectVersion"
-      echo "version=$projectVersion" >> $GITHUB_OUTPUT
-
-  - name: Set up GIT
-    shell: bash
-    run: |
-      git config --local user.name '${{ inputs.git-user-name }}'
-      git config --local user.email '${{ inputs.git-user-email }}'
-
-  - name: Enforce branch version
-    id: enforce-branch-version-step
-    if: steps.needs-branch-version.outputs.needs == 'true'    # step outputs are always strings
-    shell: bash
-    run: |
-
-      # This condition needs to be inside the script (not in "if" field), because GitHub is unable to properly implement boolean inputs.
-      # https://github.com/actions/runner/issues/2238
-
-      if [ "${{ inputs.enforce-branch-version }}" = "false" ]; then
-        echo "Project version enforcement is turned off."
-        exit 0
-      fi
-
-      versionRegexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
-      projectVersion=${{ steps.get-project-version.outputs.version }}
-
-      if [[ $projectVersion =~ $versionRegexp ]]; then
-        echo "Project does have a branch version."
-        echo "changes-made=false" >> $GITHUB_OUTPUT
-      else
-        branchPostfix=$(echo "${GITHUB_REF_NAME}" | tr / -)
-        versionWithoutSnapshot="${projectVersion%-SNAPSHOT}"
-        newVersion="${versionWithoutSnapshot}-${branchPostfix}-SNAPSHOT"
-        echo "Project does not have a branch version. I will change it automatically to ${newVersion}";
-        mvn -B versions:set -DnewVersion="$newVersion" -DgenerateBackupPoms=false --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
-        git commit -a -m "Switched to branch-specific version.${{ inputs.commit-message-suffix }}"
-        echo "changes-made=true" >> $GITHUB_OUTPUT
-      fi
-
-  - name: Remove branch version
-    id: remove-branch-version
-    if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
-    shell: bash
-    run: |
-      versionRegexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
-      projectVersion=${{ steps.get-project-version.outputs.version }}
-
-      if [[ $projectVersion =~ $versionRegexp ]]; then
-        echo "Project does have a branch version. I will remove it, since we are on main/develop/release branch."
-
-        prefix=$(echo "$projectVersion" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
-        newVersion="$prefix-SNAPSHOT"
-        echo "New version: $newVersion"
-        mvn -B versions:set -DnewVersion="$newVersion" versions:commit --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
-
-        git commit -a -m "Switched to non branch-specific version.${{ inputs.commit-message-suffix }}"
-        echo "changes-made=true" >> $GITHUB_OUTPUT
-      else
-        echo "changes-made=false" >> $GITHUB_OUTPUT
-      fi
-
-  - name: Remove dependency branch versions
-    id: remove-dependency-branch-versions
-    if: ${{ steps.needs-branch-version.outputs.needs == 'false' }} # step outputs are always strings
-    continue-on-error: true
-    shell: bash
-    run: |
-      changesMade=false
-      tempFile=$(mktemp)
-      mvn -B dependency:list -DexcludeTransitive=true -DoutputFile="$tempFile" --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
-
-      versionRegexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
-
-      lineRegexp="^([^:]+:){4}[^:]+$"
-
-      while IFS= read -r line; do
-        if [[ "$line" =~ $lineRegexp ]]; then
-
-          trimmedLine="${line#"${line%%[![:space:]]*}"}" # remove leading spaces from line
-          echo ""
-          echo "Checking dependency: $trimmedLine"
-
-          IFS=':' read -ra lineParts <<< "$trimmedLine"
-
-          group="${lineParts[0]}"
-          artifact="${lineParts[1]}"
-          version="${lineParts[3]}"
-
-          if [[ $version =~ $versionRegexp ]]; then
-            echo "Found a branch-specific version for ${group}:${artifact}. I will remove it."
-
-            prefix=$(echo "$version" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
-            newVersion="$prefix-SNAPSHOT"
-            echo "New version: $newVersion"
-
-            mvn -B versions:use-dep-version -DprocessProperties=true -Dincludes=${group}:${artifact} -DdepVersion=${newVersion} -DforceVersion=true --file ${{ inputs.pom-file }} ${{ inputs.maven-args }}
-
-            changesMade=true
-          fi
-        fi
-      done < "$tempFile"
-
-      if [ "$changesMade" = true ]; then
-        git commit -a -m "Switched to non branch dependency versions.${{ inputs.commit-message-suffix }}"
-        echo "changes-made=true" >> $GITHUB_OUTPUT
-      else
-        echo "changes-made=false" >> $GITHUB_OUTPUT
-      fi
-
-  - name: Sumarize changes
-    id: sumarize-changes
-    shell: bash
-    run: |
-      if [[ "${{ steps.enforce-branch-version-step.outputs.changes-made }}" = "true" || "${{ steps.remove-branch-version.outputs.changes-made }}" = "true" || "${{ steps.remove-dependency-branch-versions.outputs.changes-made }}" = "true" ]]; then
-        echo "Changes have been made."
-        echo "changes-made=true" >> $GITHUB_OUTPUT
-      else
-        echo "No changes have been made."
-        echo "changes-made=false" >> $GITHUB_OUTPUT
-      fi
-
-  - name: Push changes
-    if: steps.sumarize-changes.outputs.changes-made == 'true' # step outputs are always strings
-    shell: bash
-    run: |
-
-      # This condition needs to be inside the script (not in "if" field), because GitHub is unable to properly implement boolean inputs.
-      # https://github.com/actions/runner/issues/2238
-
-      if [ "${{ inputs.push-changes }}" = "true" ]; then
-        echo "Pushing changes:"
-        git push
-      fi
+    - name: Prevent Maven Artifact Overwrites
+      id: run-script
+      shell: bash
+      env:
+        BRANCH_NAME: ${{ github.ref_name }}
+        ENFORCE_BRANCH_VERSION: ${{ inputs.enforce-branch-version }}
+        PUSH_CHANGES: ${{ inputs.push-changes }}
+        POM_FILE: ${{ inputs.pom-file }}
+        MAVEN_ARGS: ${{ inputs.maven-args }}
+        COMMIT_MESSAGE_SUFFIX: ${{ inputs.commit-message-suffix }}
+        GIT_USER_NAME: ${{ inputs.git-user-name }}
+        GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      run: |
+        chmod +x "${{ github.action_path }}/prevent-overwrites.sh"
+        "${{ github.action_path }}/prevent-overwrites.sh"
