@@ -34,10 +34,14 @@ spec:
       type: string
       default: "maven:3.9-eclipse-temurin-17"
       description: "Docker image to use for the job"
-    script-source:
+    script-repo-path:
       type: string
-      default: "https://raw.githubusercontent.com/maven-flow/prevent-artifact-overwrites/v1/prevent-overwrites.sh"
-      description: "URL to fetch the prevent-overwrites.sh script from"
+      default: "maven-flow/prevent-artifact-overwrites"
+      description: "GitLab repository path containing the prevent-overwrites.sh script"
+    script-version:
+      type: string
+      default: "v1"
+      description: "Git ref (tag, branch, or SHA) to fetch the script from"
 ---
 prevent-overwrites:
   stage: $[[ inputs.stage ]]
@@ -50,7 +54,8 @@ prevent-overwrites:
     GIT_USER_EMAIL: $[[ inputs.git-user-email ]]
     MAVEN_ARGS: $[[ inputs.maven-args ]]
     POM_FILE: $[[ inputs.pom-file ]]
-    SCRIPT_SOURCE: $[[ inputs.script-source ]]
+    SCRIPT_REPO_PATH: $[[ inputs.script-repo-path ]]
+    SCRIPT_VERSION: $[[ inputs.script-version ]]
   before_script:
     - |
       # Configure git for pushing
@@ -58,8 +63,10 @@ prevent-overwrites:
       git config --global user.email "$GIT_USER_EMAIL"
       # Set up git remote with CI job token for pushing
       git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
-      # Fetch the script
-      curl -sSfL "$SCRIPT_SOURCE" -o /tmp/prevent-overwrites.sh
+      # Fetch the script from the same GitLab instance
+      SCRIPT_URL="${CI_SERVER_URL}/${SCRIPT_REPO_PATH}/-/raw/${SCRIPT_VERSION}/prevent-overwrites.sh"
+      echo "Fetching script from: $SCRIPT_URL"
+      curl -sSfL "$SCRIPT_URL" -o /tmp/prevent-overwrites.sh
       chmod +x /tmp/prevent-overwrites.sh
   script:
     - /tmp/prevent-overwrites.sh

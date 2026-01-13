@@ -217,7 +217,8 @@ build:
 | `pom-file` | No | `pom.xml` | Path to Maven POM file |
 | `stage` | No | `prepare` | Pipeline stage for the job |
 | `image` | No | `maven:3.9-eclipse-temurin-17` | Docker image for the job |
-| `script-source` | No | GitHub raw URL | URL to fetch the script from |
+| `script-repo-path` | No | `maven-flow/prevent-artifact-overwrites` | GitLab repo path for the script |
+| `script-version` | No | `v1` | Git ref to fetch the script from |
 
 ### Protected Branches
 
@@ -227,6 +228,13 @@ If pushing to protected branches, you may need to:
 
 ### Self-Hosted GitLab
 
-If you're using a self-hosted GitLab instance, you can either:
-1. Mirror this repository to your GitLab instance and reference it as a component
-2. Override the `script-source` input to point to your internal URL
+The script is fetched from `${CI_SERVER_URL}/${script-repo-path}`, so it automatically uses your GitLab instance. Just mirror this repository to your GitLab at the default path (`maven-flow/prevent-artifact-overwrites`), or override `script-repo-path` if you use a different location:
+
+```yaml
+include:
+  - component: gitlab.example.com/my-org/prevent-artifact-overwrites/prevent-overwrites@v1
+    inputs:
+      enforce-branch-version: true
+      push-changes: true
+      script-repo-path: "my-org/prevent-artifact-overwrites"
+```
