@@ -215,8 +215,9 @@ remove_dependency_branch_versions() {
 
 push_changes() {
     if [[ "$PUSH_CHANGES" == "true" ]]; then
-        log_info "Pushing changes..."
-        git push
+        log_info "Pushing changes to branch '$BRANCH_NAME'..."
+        # Use HEAD:<branch> syntax to support detached HEAD state (common in CI)
+        git push origin "HEAD:$BRANCH_NAME"
     else
         log_info "Push changes disabled. Skipping push."
     fi
