@@ -64,9 +64,10 @@ prevent-overwrites:
       # Set up git remote with CI job token for pushing
       git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
       # Fetch the script from the same GitLab instance using the API
-      # URL-encode the script repo path for API usage (replace / with %2F)
+      # URL-encode paths for API usage (replace / with %2F)
       ENCODED_REPO_PATH=$(echo "$SCRIPT_REPO_PATH" | sed 's/\//%2F/g')
-      SCRIPT_URL="${CI_API_V4_URL}/projects/${ENCODED_REPO_PATH}/repository/files/prevent-overwrites.sh/raw?ref=${SCRIPT_VERSION}"
+      ENCODED_REF=$(echo "$SCRIPT_VERSION" | sed 's/\//%2F/g')
+      SCRIPT_URL="${CI_API_V4_URL}/projects/${ENCODED_REPO_PATH}/repository/files/prevent-overwrites.sh/raw?ref=${ENCODED_REF}"
       echo "Fetching script from: $SCRIPT_URL"
       curl -sSfL -u "gitlab-ci-token:${CI_JOB_TOKEN}" "$SCRIPT_URL" -o /tmp/prevent-overwrites.sh
       cat /tmp/prevent-overwrites.sh
