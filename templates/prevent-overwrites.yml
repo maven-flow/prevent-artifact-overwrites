@@ -63,10 +63,11 @@ prevent-overwrites:
       git config --global user.email "$GIT_USER_EMAIL"
       # Set up git remote with CI job token for pushing
       git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
-      # Fetch the script from the component repository using git archive
+      # Fetch the script via shallow clone of the component repository
       SCRIPT_REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${SCRIPT_REPO_PATH}.git"
       echo "Fetching script from: ${CI_SERVER_HOST}/${SCRIPT_REPO_PATH} ref: ${SCRIPT_VERSION}"
-      git archive --remote="$SCRIPT_REPO_URL" "$SCRIPT_VERSION" prevent-overwrites.sh | tar -xO > /tmp/prevent-overwrites.sh
+      git clone --depth 1 --branch "$SCRIPT_VERSION" --single-branch "$SCRIPT_REPO_URL" /tmp/script-repo
+      cp /tmp/script-repo/prevent-overwrites.sh /tmp/prevent-overwrites.sh
       cat /tmp/prevent-overwrites.sh
       chmod +x /tmp/prevent-overwrites.sh
   script:
