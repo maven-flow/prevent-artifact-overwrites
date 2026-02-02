@@ -67,9 +67,8 @@ prevent-overwrites:
       SCRIPT_REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${SCRIPT_REPO_PATH}.git"
       echo "Fetching script from: ${CI_SERVER_HOST}/${SCRIPT_REPO_PATH} ref: ${SCRIPT_VERSION}"
       git clone --depth 1 --branch "$SCRIPT_VERSION" --single-branch "$SCRIPT_REPO_URL" /tmp/script-repo
-      cp /tmp/script-repo/prevent-overwrites.sh /tmp/prevent-overwrites.sh
-      chmod +x /tmp/prevent-overwrites.sh
+      chmod +x /tmp/script-repo/prevent-overwrites.sh
   script:
-    - /tmp/prevent-overwrites.sh
+    - /tmp/script-repo/prevent-overwrites.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
