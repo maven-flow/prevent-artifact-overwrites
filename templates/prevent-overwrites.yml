@@ -72,3 +72,7 @@ prevent-overwrites:
     - /tmp/script-repo/prevent-overwrites.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
+  artifacts:
+    paths:
+      # Pass modified pom files to subsequent jobs (because subsequent jobs will not see the latest commit with changes)
+      - "**/pom.xml"
