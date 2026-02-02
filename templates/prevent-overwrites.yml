@@ -68,7 +68,6 @@ prevent-overwrites:
       echo "Fetching script from: ${CI_SERVER_HOST}/${SCRIPT_REPO_PATH} ref: ${SCRIPT_VERSION}"
       git clone --depth 1 --branch "$SCRIPT_VERSION" --single-branch "$SCRIPT_REPO_URL" /tmp/script-repo
       cp /tmp/script-repo/prevent-overwrites.sh /tmp/prevent-overwrites.sh
-      cat /tmp/prevent-overwrites.sh
       chmod +x /tmp/prevent-overwrites.sh
   script:
     - /tmp/prevent-overwrites.sh
