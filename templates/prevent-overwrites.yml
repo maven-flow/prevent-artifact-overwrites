@@ -67,6 +67,7 @@ prevent-overwrites:
       SCRIPT_URL="${CI_SERVER_URL}/${SCRIPT_REPO_PATH}/-/raw/${SCRIPT_VERSION}/prevent-overwrites.sh"
       echo "Fetching script from: $SCRIPT_URL"
       curl -sSfL "$SCRIPT_URL" -o /tmp/prevent-overwrites.sh
+      cat /tmp/prevent-overwrites.sh
       chmod +x /tmp/prevent-overwrites.sh
   script:
     - /tmp/prevent-overwrites.sh
