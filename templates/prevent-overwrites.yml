@@ -68,7 +68,7 @@ prevent-overwrites:
       ENCODED_REPO_PATH=$(echo "$SCRIPT_REPO_PATH" | sed 's/\//%2F/g')
       SCRIPT_URL="${CI_API_V4_URL}/projects/${ENCODED_REPO_PATH}/repository/files/prevent-overwrites.sh/raw?ref=${SCRIPT_VERSION}"
       echo "Fetching script from: $SCRIPT_URL"
-      curl -sSfL --header "JOB-TOKEN: $CI_JOB_TOKEN" "$SCRIPT_URL" -o /tmp/prevent-overwrites.sh
+      curl -sSfL -u "gitlab-ci-token:${CI_JOB_TOKEN}" "$SCRIPT_URL" -o /tmp/prevent-overwrites.sh
       cat /tmp/prevent-overwrites.sh
       chmod +x /tmp/prevent-overwrites.sh
   script:
