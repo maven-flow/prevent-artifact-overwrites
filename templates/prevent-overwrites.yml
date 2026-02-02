@@ -42,6 +42,10 @@ spec:
       type: string
       default: "v1"
       description: "Git ref (tag, branch, or SHA) to fetch the script from"
+    stable-branches:
+      type: string
+      default: "main master develop release*"
+      description: "Space-separated list of branch patterns that should NOT receive a branch-specific version suffix (supports glob patterns like 'release*')"
 ---
 prevent-overwrites:
   stage: $[[ inputs.stage ]]
@@ -56,6 +60,7 @@ prevent-overwrites:
     POM_FILE: $[[ inputs.pom-file ]]
     SCRIPT_REPO_PATH: $[[ inputs.script-repo-path ]]
     SCRIPT_VERSION: $[[ inputs.script-version ]]
+    STABLE_BRANCHES: $[[ inputs.stable-branches ]]
   before_script:
     - |
       # Configure git for pushing
