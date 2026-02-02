@@ -12,13 +12,13 @@ This is a CI/CD tool that prevents Maven SNAPSHOT artifacts from different Git b
 /
 ├── action.yml                    # GitHub Action (calls prevent-overwrites.sh)
 ├── prevent-overwrites.sh         # Core logic - standalone bash script
-├── templates/
+├── gitlab/
 │   └── prevent-overwrites.yml    # GitLab CI/CD Component
 ├── README.md
 └── ...
 ```
 
-**Core logic** is in `prevent-overwrites.sh` - a standalone bash script that can run on any CI platform. Both `action.yml` (GitHub) and `templates/prevent-overwrites.yml` (GitLab) call this script.
+**Core logic** is in `prevent-overwrites.sh` - a standalone bash script that can run on any CI platform. Both `action.yml` (GitHub) and `gitlab/prevent-overwrites.yml` (GitLab) call this script.
 
 **Key operations performed by the script:**
 1. **Branch detection** - Determines if running on a feature branch (not main/master/develop/release*)
