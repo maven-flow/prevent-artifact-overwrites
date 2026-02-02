@@ -66,7 +66,7 @@ prevent-overwrites:
       # Fetch the script from the same GitLab instance
       SCRIPT_URL="${CI_SERVER_URL}/${SCRIPT_REPO_PATH}/-/raw/${SCRIPT_VERSION}/prevent-overwrites.sh"
       echo "Fetching script from: $SCRIPT_URL"
-      curl -sSfL "$SCRIPT_URL" -o /tmp/prevent-overwrites.sh
+      curl -sSfL --header "JOB-TOKEN: $CI_JOB_TOKEN" "$SCRIPT_URL" -o /tmp/prevent-overwrites.sh
       cat /tmp/prevent-overwrites.sh
       chmod +x /tmp/prevent-overwrites.sh
   script:
