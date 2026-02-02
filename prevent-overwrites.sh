@@ -126,7 +126,7 @@ enforce_branch_version() {
         return
     fi
 
-    local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
+    local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
 
     if [[ "$PROJECT_VERSION" =~ $version_regexp ]]; then
         log_info "Project already has a branch version."
@@ -146,7 +146,7 @@ enforce_branch_version() {
 }
 
 remove_branch_version() {
-    local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
+    local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
 
     if [[ "$PROJECT_VERSION" =~ $version_regexp ]]; then
         log_info "Project has a branch version. Removing since we are on main/develop/release branch."
@@ -173,7 +173,7 @@ remove_dependency_branch_versions() {
     # shellcheck disable=SC2086
     mvn -B dependency:list -DexcludeTransitive=true -DoutputFile="$temp_file" --file "$POM_FILE" $MAVEN_ARGS || true
 
-    local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$'
+    local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
     local line_regexp="^([^:]+:){4}[^:]+$"
 
     while IFS= read -r line; do

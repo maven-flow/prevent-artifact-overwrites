@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Refactored `action.yml` to use the shared `prevent-overwrites.sh` script instead of inline bash
 
+### Fixed
+
+- Branch-specific versions containing special characters were not recognized (eg. `1.1.0-FEA-123_comments-SNAPSHOT` was not recognized because of the underscore)
+
 ## [1.0.0] - 2024-08-04
 
 First released version.

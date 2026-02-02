@@ -27,7 +27,7 @@ This is a CI/CD tool that prevents Maven SNAPSHOT artifacts from different Git b
 4. **Remove branch version** - On main branches, strips branch suffix back to original version
 5. **Remove dependency branch versions** - Resets branch-specific dependency versions when merging to main branches
 
-**Version regex pattern:** `^[0-9]+\.[0-9]+\.[0-9].*-[0-9a-zA-Z]+-SNAPSHOT$`
+**Version regex pattern:** `^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$`
 
 **Environment variables** configure the script (see README.md for full list):
 - `BRANCH_NAME` - Auto-detected from CI platform or git
