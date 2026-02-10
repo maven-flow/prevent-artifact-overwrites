@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- Input attribute `core-branches`
 - GitLab CI/CD Component support (`gitlab/prevent-overwrites.yml`)
 - Standalone `prevent-overwrites.sh` script that can run on any CI platform
 - Auto-detection of CI platform (GitHub Actions, GitLab CI/CD, Bitbucket, CircleCI, Travis CI)
