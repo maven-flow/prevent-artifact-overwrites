@@ -21,7 +21,7 @@ MAVEN_ARGS="${MAVEN_ARGS:-}"
 COMMIT_MESSAGE_SUFFIX="${COMMIT_MESSAGE_SUFFIX:-}"
 GIT_USER_NAME="${GIT_USER_NAME:-ci-bot}"
 GIT_USER_EMAIL="${GIT_USER_EMAIL:-ci-bot@example.com}"
-STABLE_BRANCHES="${STABLE_BRANCHES:-main master develop release*}"
+CORE_BRANCHES="${CORE_BRANCHES:-main master develop release*}"
 
 # Output file for CI integration (optional, for GitLab dotenv artifacts)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
@@ -95,7 +95,7 @@ check_branch_needs_version() {
     log_info "Current branch: '$BRANCH_NAME'"
 
     NEEDS_BRANCH_VERSION="true"
-    for pattern in $STABLE_BRANCHES; do
+    for pattern in $CORE_BRANCHES; do
         # shellcheck disable=SC2053
         if [[ "$BRANCH_NAME" == $pattern ]]; then
             NEEDS_BRANCH_VERSION="false"

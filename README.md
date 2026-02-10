@@ -66,7 +66,7 @@ Full action configuration:
         maven-args: '-P github'
         pom-file: 'subdir/pom.xml'
         push-changes: true
-        stable-branches: 'main master develop release*'
+        core-branches: 'main master develop release*'
 ```
 
 Example workflow:
@@ -143,7 +143,7 @@ jobs:
 
 **Default value:** `pom.xml`
 
-### `stable-branches`
+### `core-branches`
 
 **Optional.** Space-separated list of branch patterns that should NOT receive a branch-specific version suffix. Supports glob patterns like `release*`.
 
@@ -184,7 +184,7 @@ include:
       git-user-email: "john.doe@example.com"
       maven-args: "-P gitlab"
       pom-file: "subdir/pom.xml"
-      stable-branches: "main master develop release*"
+      core-branches: "main master develop release*"
       stage: "prepare"
       image: "maven:3.9-eclipse-temurin-17"
 ```
@@ -223,7 +223,7 @@ build:
 | `git-user-email` | No | `gitlab-ci[bot]@users.noreply.gitlab.com` | Git user email for commits |
 | `maven-args` | No | `""` | Additional Maven arguments |
 | `pom-file` | No | `pom.xml` | Path to Maven POM file |
-| `stable-branches` | No | `main master develop release*` | Branch patterns that should NOT receive a branch-specific version suffix (supports globs) |
+| `core-branches` | No | `main master develop release*` | Branch patterns that should NOT receive a branch-specific version suffix (supports globs) |
 | `stage` | No | `prepare` | Pipeline stage for the job |
 | `image` | No | `maven:3.9-eclipse-temurin-17` | Docker image for the job |
 | `script-repo-path` | No | `maven-flow/prevent-artifact-overwrites` | GitLab repo path for the script |

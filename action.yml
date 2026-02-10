@@ -37,7 +37,7 @@ inputs:
   push-changes:
     required: true
     type: boolean
-  stable-branches:
+  core-branches:
     description: "Space-separated list of branch patterns that should NOT receive a branch-specific version suffix (supports glob patterns like 'release*')"
     default: "main master develop release*"
     required: false
@@ -63,7 +63,7 @@ runs:
         COMMIT_MESSAGE_SUFFIX: ${{ inputs.commit-message-suffix }}
         GIT_USER_NAME: ${{ inputs.git-user-name }}
         GIT_USER_EMAIL: ${{ inputs.git-user-email }}
-        STABLE_BRANCHES: ${{ inputs.stable-branches }}
+        CORE_BRANCHES: ${{ inputs.core-branches }}
       run: |
         chmod +x "${{ github.action_path }}/prevent-overwrites.sh"
         "${{ github.action_path }}/prevent-overwrites.sh"
