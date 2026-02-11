@@ -63,7 +63,6 @@ Full action configuration:
         enforce-branch-version: true
         git-user-name: 'John Doe'
         git-user-email: 'john.doe@example.com'
-        maven-args: '-P github'
         pom-file: 'subdir/pom.xml'
         push-changes: true
         core-branches: 'main master develop release*'
@@ -133,9 +132,7 @@ jobs:
 
 ### `maven-args`
 
-**Optional.** This action uses Maven plugins behind the scenes. You can use this parameter to pass any arguments needed for Maven to work. For example `-P github`.
-
-**Default value:** `""`
+**Deprecated.** No longer used. Kept for backwards compatibility.
 
 ### `pom-file`
 
@@ -182,7 +179,6 @@ include:
       commit-message-suffix: " [skip ci]"
       git-user-name: "John Doe"
       git-user-email: "john.doe@example.com"
-      maven-args: "-P gitlab"
       pom-file: "subdir/pom.xml"
       core-branches: "main master develop release*"
       stage: "prepare"
@@ -221,7 +217,7 @@ build:
 | `commit-message-suffix` | No | `""` | Text appended to commit messages |
 | `git-user-name` | No | `gitlab-ci[bot]` | Git user name for commits |
 | `git-user-email` | No | `gitlab-ci[bot]@users.noreply.gitlab.com` | Git user email for commits |
-| `maven-args` | No | `""` | Additional Maven arguments |
+| `maven-args` | No | `""` | **Deprecated.** No longer used. |
 | `pom-file` | No | `pom.xml` | Path to Maven POM file |
 | `core-branches` | No | `main master develop release*` | Branch patterns that should NOT receive a branch-specific version suffix (supports globs) |
 | `stage` | No | `prepare` | Pipeline stage for the job |

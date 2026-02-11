@@ -33,7 +33,7 @@ This is a CI/CD tool that prevents Maven SNAPSHOT artifacts from different Git b
 - `BRANCH_NAME` - Auto-detected from CI platform or git
 - `ENFORCE_BRANCH_VERSION` - true/false
 - `PUSH_CHANGES` - true/false
-- `POM_FILE`, `MAVEN_ARGS`, `GIT_USER_NAME`, `GIT_USER_EMAIL`, etc.
+- `POM_FILE`, `GIT_USER_NAME`, `GIT_USER_EMAIL`, etc.
 
 ## Testing
 

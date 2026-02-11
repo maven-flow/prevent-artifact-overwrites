@@ -17,7 +17,6 @@ BRANCH_NAME="${BRANCH_NAME:-}"
 ENFORCE_BRANCH_VERSION="${ENFORCE_BRANCH_VERSION:-true}"
 PUSH_CHANGES="${PUSH_CHANGES:-true}"
 POM_FILE="${POM_FILE:-pom.xml}"
-MAVEN_ARGS="${MAVEN_ARGS:-}"
 COMMIT_MESSAGE_SUFFIX="${COMMIT_MESSAGE_SUFFIX:-}"
 GIT_USER_NAME="${GIT_USER_NAME:-ci-bot}"
 GIT_USER_EMAIL="${GIT_USER_EMAIL:-ci-bot@example.com}"
@@ -107,9 +106,15 @@ check_branch_needs_version() {
 }
 
 get_project_version() {
-    log_info "Getting project version from Maven..."
-    # shellcheck disable=SC2086
-    PROJECT_VERSION=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file "$POM_FILE" $MAVEN_ARGS)
+    log_info "Getting project version from POM file..."
+    # Extract version from the project's own <version> tag (not parent's).
+    # Uses the first <version> that is a direct child of <project>, or falls back
+    # to the first <version> found outside a <parent> block.
+    PROJECT_VERSION=$(sed -n '/<parent>/,/<\/parent>/!{ s/.*<version>\(.*\)<\/version>.*/\1/p; }' "$POM_FILE" | head -1)
+    if [[ -z "$PROJECT_VERSION" ]]; then
+        # If no version outside <parent>, the project inherits from parent
+        PROJECT_VERSION=$(sed -n 's/.*<version>\(.*\)<\/version>.*/\1/p' "$POM_FILE" | head -1)
+    fi
     log_info "Project version: $PROJECT_VERSION"
 }
 
@@ -138,8 +143,14 @@ enforce_branch_version() {
         local new_version="${version_without_snapshot}-${branch_postfix}-SNAPSHOT"
 
         log_info "Project does not have a branch version. Changing to: $new_version"
-        # shellcheck disable=SC2086
-        mvn -B versions:set -DnewVersion="$new_version" -DgenerateBackupPoms=false --file "$POM_FILE" $MAVEN_ARGS
+        local pom_dir
+        pom_dir=$(dirname "$POM_FILE")
+        while IFS= read -r pom; do
+            if grep -q "$PROJECT_VERSION" "$pom"; then
+                log_info "Updating version in $pom"
+                sed -i "s|${PROJECT_VERSION}|${new_version}|g" "$pom"
+            fi
+        done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
         git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
         ENFORCE_CHANGES_MADE="true"
     fi
@@ -156,8 +167,14 @@ remove_branch_version() {
         local new_version="$prefix-SNAPSHOT"
 
         log_info "New version: $new_version"
-        # shellcheck disable=SC2086
-        mvn -B versions:set -DnewVersion="$new_version" versions:commit --file "$POM_FILE" $MAVEN_ARGS
+        local pom_dir
+        pom_dir=$(dirname "$POM_FILE")
+        while IFS= read -r pom; do
+            if grep -q "$PROJECT_VERSION" "$pom"; then
+                log_info "Updating version in $pom"
+                sed -i "s|${PROJECT_VERSION}|${new_version}|g" "$pom"
+            fi
+        done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
         git commit -a -m "Switched to non branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
         REMOVE_VERSION_CHANGES_MADE="true"
     else
@@ -167,46 +184,25 @@ remove_branch_version() {
 
 remove_dependency_branch_versions() {
     local changes_made="false"
-    local temp_file
-    temp_file=$(mktemp)
+    local version_regexp='[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT'
+    local pom_dir
+    pom_dir=$(dirname "$POM_FILE")
 
-    # shellcheck disable=SC2086
-    mvn -B dependency:list -DexcludeTransitive=true -DoutputFile="$temp_file" --file "$POM_FILE" $MAVEN_ARGS || true
+    # Scan all pom.xml files for branch-specific SNAPSHOT versions and replace them directly.
+    # This avoids Maven invocations (which download dependencies and are slow).
+    while IFS= read -r pom; do
+        while IFS= read -r version; do
+            local prefix
+            prefix=$(echo "$version" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
+            local new_version="$prefix-SNAPSHOT"
 
-    local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
-    local line_regexp="^([^:]+:){4}[^:]+$"
-
-    while IFS= read -r line; do
-        if [[ "$line" =~ $line_regexp ]]; then
-            local trimmed_line="${line#"${line%%[![:space:]]*}"}"
-            log_info ""
-            log_info "Checking dependency: $trimmed_line"
-
-            IFS=':' read -ra line_parts <<< "$trimmed_line"
-
-            local group="${line_parts[0]}"
-            local artifact="${line_parts[1]}"
-            local version="${line_parts[3]}"
-
-            if [[ "$version" =~ $version_regexp ]]; then
-                log_info "Found branch-specific version for ${group}:${artifact}. Removing."
-
-                local prefix
-                prefix=$(echo "$version" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
-                local new_version="$prefix-SNAPSHOT"
-
-                log_info "New version: $new_version"
-                # shellcheck disable=SC2086
-                mvn -B versions:use-dep-version -DprocessProperties=true \
-                    -Dincludes="${group}:${artifact}" -DdepVersion="${new_version}" \
-                    -DforceVersion=true --file "$POM_FILE" $MAVEN_ARGS
-
+            if [[ "$version" != "$new_version" ]]; then
+                log_info "Replacing version $version with $new_version in $pom"
+                sed -i "s|${version}|${new_version}|g" "$pom"
                 changes_made="true"
             fi
-        fi
-    done < "$temp_file"
-
-    rm -f "$temp_file"
+        done < <(grep -oE "$version_regexp" "$pom" | sort -u)
+    done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
 
     if [[ "$changes_made" == "true" ]]; then
         git commit -a -m "Switched to non branch dependency versions.${COMMIT_MESSAGE_SUFFIX}"

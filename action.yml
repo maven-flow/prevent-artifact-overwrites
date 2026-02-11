@@ -25,7 +25,7 @@ inputs:
     required: false
     type: string
   maven-args:
-    description: "Additional arguments to pass to Maven commands"
+    description: "Deprecated. No longer used. Kept for backwards compatibility."
     default: ""
     required: false
     type: string
@@ -59,7 +59,6 @@ runs:
         ENFORCE_BRANCH_VERSION: ${{ inputs.enforce-branch-version }}
         PUSH_CHANGES: ${{ inputs.push-changes }}
         POM_FILE: ${{ inputs.pom-file }}
-        MAVEN_ARGS: ${{ inputs.maven-args }}
         COMMIT_MESSAGE_SUFFIX: ${{ inputs.commit-message-suffix }}
         GIT_USER_NAME: ${{ inputs.git-user-name }}
         GIT_USER_EMAIL: ${{ inputs.git-user-email }}

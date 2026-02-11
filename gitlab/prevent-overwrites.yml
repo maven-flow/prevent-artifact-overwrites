@@ -21,7 +21,7 @@ spec:
     maven-args:
       type: string
       default: ""
-      description: "Additional arguments to pass to Maven commands"
+      description: "Deprecated. No longer used. Kept for backwards compatibility."
     pom-file:
       type: string
       default: "pom.xml"
@@ -56,7 +56,6 @@ prevent-overwrites:
     COMMIT_MESSAGE_SUFFIX: $[[ inputs.commit-message-suffix ]]
     GIT_USER_NAME: $[[ inputs.git-user-name ]]
     GIT_USER_EMAIL: $[[ inputs.git-user-email ]]
-    MAVEN_ARGS: $[[ inputs.maven-args ]]
     POM_FILE: $[[ inputs.pom-file ]]
     SCRIPT_REPO_PATH: $[[ inputs.script-repo-path ]]
     SCRIPT_VERSION: $[[ inputs.script-version ]]
