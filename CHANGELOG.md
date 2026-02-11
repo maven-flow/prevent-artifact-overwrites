@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-detection of CI platform (GitHub Actions, GitLab CI/CD, Bitbucket, CircleCI, Travis CI)
 
 ### Changed
+- Replaced Maven commands with direct POM file manipulation (sed/grep), significantly improving performance by eliminating slow Maven dependency resolution and downloads
 - Refactored `action.yml` to use the shared `prevent-overwrites.sh` script instead of inline bash
+- `maven-args` input is deprecated and will be removed in a future version (only kept now for backward compatibility)
 
 ### Fixed
 
