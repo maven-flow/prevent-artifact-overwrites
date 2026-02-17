@@ -148,7 +148,17 @@ enforce_branch_version() {
         while IFS= read -r pom; do
             if grep -q "$PROJECT_VERSION" "$pom"; then
                 log_info "Updating version in $pom"
-                sed -i "s|${PROJECT_VERSION}|${new_version}|g" "$pom"
+                # Replace only the project version (first <version> outside <parent>),
+                # not dependency versions that happen to match.
+                awk -v old="$PROJECT_VERSION" -v new="$new_version" '
+                    /<parent>/ { in_parent=1 }
+                    /<\/parent>/ { in_parent=0 }
+                    !in_parent && !done && index($0, "<version>" old "</version>") {
+                        sub("<version>" old "</version>", "<version>" new "</version>")
+                        done=1
+                    }
+                    { print }
+                ' "$pom" > "${pom}.tmp" && mv "${pom}.tmp" "$pom"
             fi
         done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
         git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
@@ -160,7 +170,7 @@ remove_branch_version() {
     local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
 
     if [[ "$PROJECT_VERSION" =~ $version_regexp ]]; then
-        log_info "Project has a branch version. Removing since we are on main/develop/release branch."
+        log_info "Project has a branch version. Removing it, since we are on a core branch."
 
         local prefix
         prefix=$(echo "$PROJECT_VERSION" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
