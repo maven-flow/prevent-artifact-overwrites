@@ -37,9 +37,19 @@ This is a CI/CD tool that prevents Maven SNAPSHOT artifacts from different Git b
 
 ## Testing
 
-There are no automated tests. To test changes:
-1. Run `prevent-overwrites.sh` locally with environment variables set
-2. Use the action in a workflow on a test Maven project repository
+Run all tests with:
+```bash
+bash test/run-all-tests.sh
+```
+
+Tests are in `test/` — each `test-*.sh` script sets up a temporary git repo with a sample pom.xml, runs `prevent-overwrites.sh` with specific environment variables, and verifies the result:
+
+- `test-enforce-branch-version` — feature branch adds branch suffix to project version, leaves dependencies unchanged
+- `test-enforce-already-has-branch-version` — skips when project already has a branch version
+- `test-enforce-disabled` — skips when `ENFORCE_BRANCH_VERSION=false`
+- `test-remove-branch-version` — core branch strips branch suffix from project version
+- `test-remove-dependency-branch-versions` — core branch strips branch suffixes from dependency versions (including rc versions)
+- `test-core-branch-no-changes` — no changes when nothing has branch suffixes
 
 ## Release Process
 
