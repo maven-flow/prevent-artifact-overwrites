@@ -31,38 +31,11 @@ CORE_BRANCHES="main master develop release*" \
 bash "$REPO_ROOT/prevent-overwrites.sh"
 
 echo ""
-echo "=== Resulting pom.xml ==="
-cat "$WORK_DIR/pom.xml"
-
-echo ""
-echo "=== Verifying ==="
-
-PASS=true
-
-# Version should remain unchanged
-project_version=$(sed -n '/<parent>/,/<\/parent>/!{ s/.*<version>\(.*\)<\/version>.*/\1/p; }' "$WORK_DIR/pom.xml" | head -1)
-
-if [[ "$project_version" == "1.2.3-feature-old-SNAPSHOT" ]]; then
-    echo "PASS: Project version unchanged: '$project_version'"
-else
-    echo "FAIL: Project version is '$project_version', expected '1.2.3-feature-old-SNAPSHOT'"
-    PASS=false
-fi
-
-# Verify no commits were made (only the initial commit)
-commit_count=$(git rev-list --count HEAD)
-if [[ "$commit_count" == "1" ]]; then
-    echo "PASS: No additional commits made"
-else
-    echo "FAIL: Expected 1 commit, found $commit_count"
-    PASS=false
-fi
-
-echo ""
-if [[ "$PASS" == "true" ]]; then
-    echo "=== ALL TESTS PASSED ==="
+echo "=== Comparing result to expected output ==="
+if diff "$WORK_DIR/pom.xml" "$SCRIPT_DIR/sample-pom-with-branch-version.xml"; then
+    echo "=== TEST PASSED ==="
     exit 0
 else
-    echo "=== TESTS FAILED ==="
+    echo "=== TEST FAILED ==="
     exit 1
 fi

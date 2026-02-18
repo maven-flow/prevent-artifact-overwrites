@@ -20,7 +20,6 @@ cd "$WORK_DIR"
 git add pom.xml
 git commit -m "Initial commit" --quiet
 
-# Stay on the default branch (simulating main)
 BRANCH_NAME="main" \
 PUSH_CHANGES="false" \
 POM_FILE="$WORK_DIR/pom.xml" \
@@ -30,36 +29,11 @@ CORE_BRANCHES="main master develop release*" \
 bash "$REPO_ROOT/prevent-overwrites.sh"
 
 echo ""
-echo "=== Resulting pom.xml ==="
-cat "$WORK_DIR/pom.xml"
-
-echo ""
-echo "=== Verifying ==="
-
-PASS=true
-
-project_version=$(sed -n '/<parent>/,/<\/parent>/!{ s/.*<version>\(.*\)<\/version>.*/\1/p; }' "$WORK_DIR/pom.xml" | head -1)
-
-if [[ "$project_version" == "1.2.3-SNAPSHOT" ]]; then
-    echo "PASS: Project version stripped to '$project_version'"
-else
-    echo "FAIL: Project version is '$project_version', expected '1.2.3-SNAPSHOT'"
-    PASS=false
-fi
-
-commit_count=$(git rev-list --count HEAD)
-if [[ "$commit_count" == "2" ]]; then
-    echo "PASS: One commit was made for the version change"
-else
-    echo "FAIL: Expected 2 commits (initial + version change), found $commit_count"
-    PASS=false
-fi
-
-echo ""
-if [[ "$PASS" == "true" ]]; then
-    echo "=== ALL TESTS PASSED ==="
+echo "=== Comparing result to expected output ==="
+if diff "$WORK_DIR/pom.xml" "$SCRIPT_DIR/expected-remove-branch-version.xml"; then
+    echo "=== TEST PASSED ==="
     exit 0
 else
-    echo "=== TESTS FAILED ==="
+    echo "=== TEST FAILED ==="
     exit 1
 fi
