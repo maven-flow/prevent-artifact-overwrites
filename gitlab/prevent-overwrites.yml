@@ -65,6 +65,7 @@ prevent-overwrites:
     SCRIPT_VERSION: $[[ inputs.script-version ]]
     CORE_BRANCHES: $[[ inputs.core-branches ]]
     RERUN_ON_CHANGE: $[[ inputs.rerun-on-change ]]
+    OUTPUT_FILE: /tmp/prevent-overwrites-output.env
   before_script:
     - |
       # Configure git for pushing
@@ -80,12 +81,12 @@ prevent-overwrites:
   script:
     - /tmp/script-repo/prevent-overwrites.sh
     - |
-      # If a new commit was pushed by prevent-overwrites, cancel the current pipeline
+      # If prevent-overwrites made changes, cancel the current pipeline
       # and trigger a fresh one on the latest commit.
       if [ "$RERUN_ON_CHANGE" = "true" ]; then
-        LATEST=$(git ls-remote origin "$CI_COMMIT_REF_NAME" | awk '{print $1}')
-        if [ "$LATEST" != "$CI_COMMIT_SHA" ]; then
-          echo "prevent-overwrites pushed a new commit ($LATEST). Canceling current pipeline and triggering a new one..."
+        CHANGES_MADE=$(grep '^changes-made=' "$OUTPUT_FILE" | cut -d= -f2)
+        if [ "$CHANGES_MADE" = "true" ]; then
+          echo "prevent-overwrites pushed a new commit. Canceling current pipeline and triggering a new one..."
           curl --silent --fail-with-body --request POST \
             --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" \
             --header "Content-Type: application/json" \
