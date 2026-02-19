@@ -46,6 +46,10 @@ spec:
       type: string
       default: "main master develop release*"
       description: "Space-separated list of branch patterns that should NOT receive a branch-specific version suffix (supports glob patterns like 'release*')"
+    rerun-on-change:
+      type: boolean
+      default: false
+      description: "Whether to enable the check-rerun job, which cancels the current pipeline and triggers a fresh one when prevent-overwrites pushes a new commit. Requires GITLAB_API_TOKEN CI variable."
 ---
 prevent-overwrites:
   stage: $[[ inputs.stage ]]
@@ -80,3 +84,31 @@ prevent-overwrites:
     paths:
       # Pass modified pom files to subsequent jobs (because subsequent jobs will not see the latest commit with changes)
       - "**/pom.xml"
+
+# Runs after prevent-overwrites. If a new commit was pushed, cancels the current
+# pipeline and triggers a fresh one on the latest commit. exit 1 acts as a failsafe
+# to stop the build stage in case the cancellation hasn't propagated yet.
+rerun-pipeline:
+  stage: $[[ inputs.stage ]]
+  image: $[[ inputs.image ]]
+  needs:
+    - job: "prevent-overwrites"
+      optional: true
+  variables:
+    RERUN_ON_CHANGE: $[[ inputs.rerun-on-change ]]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $RERUN_ON_CHANGE == "true"'
+  script:
+    - |
+      LATEST=$(git ls-remote origin "$CI_COMMIT_REF_NAME" | awk '{print $1}')
+      if [ "$LATEST" != "$CI_COMMIT_SHA" ]; then
+        echo "prevent-overwrites pushed a new commit ($LATEST). Canceling current pipeline and triggering a new one..."
+        curl --silent --fail-with-body --request POST \
+          --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" \
+          --header "Content-Type: application/json" \
+          --data "{\"ref\": \"$CI_COMMIT_REF_NAME\"}" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipeline"
+        curl --silent --request POST \
+          --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel"
+      fi
