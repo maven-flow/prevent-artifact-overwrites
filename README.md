@@ -225,11 +225,11 @@ build:
 | `image` | No | `maven:3.9-eclipse-temurin-17` | Docker image for the job |
 | `script-repo-path` | No | `maven-flow/prevent-artifact-overwrites` | GitLab repo path for the script |
 | `script-version` | No | `v1` | Git ref to fetch the script from |
-| `rerun-on-change` | No | `false` | Enables the `rerun-pipeline` job (see below) |
+| `rerun-on-change` | No | `false` | When true, cancels the current pipeline and triggers a fresh one if `prevent-overwrites` pushed a new commit (see below) |
 
 ### Rerun Pipeline on Change
 
-When `prevent-overwrites` pushes a new commit (e.g. to enforce a branch-specific version), the current pipeline is running against a stale commit. Setting `rerun-on-change: true` adds a `rerun-pipeline` job that runs right after `prevent-overwrites` and handles this automatically: it triggers a new pipeline on the latest commit and cancels the current one.
+When `prevent-overwrites` pushes a new commit (e.g. to enforce a branch-specific version), the current pipeline is running against a stale commit. Setting `rerun-on-change: true` makes `prevent-overwrites` handle this automatically at the end of its script: it triggers a new pipeline on the latest commit and cancels the current one.
 
 This requires a `GITLAB_API_TOKEN` CI/CD variable with sufficient API access (at minimum: `api` scope or `read_api` + `write_pipelines`).
 
