@@ -71,8 +71,13 @@ prevent-overwrites:
       # Configure git for pushing
       git config --global user.name "$GIT_USER_NAME"
       git config --global user.email "$GIT_USER_EMAIL"
-      # Set up git remote with CI job token for pushing
-      git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      # Use GIT_PUSH_TOKEN (e.g. a project/group access token with write_repository scope) when
+      # provided, so pipelines can push to protected branches that block CI_JOB_TOKEN.
+      if [ -n "$GIT_PUSH_TOKEN" ]; then
+        git remote set-url origin "https://oauth2:${GIT_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      else
+        git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      fi
       # Fetch the script via shallow clone of the component repository
       SCRIPT_REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${SCRIPT_REPO_PATH}.git"
       echo "Fetching script from: ${CI_SERVER_HOST}/${SCRIPT_REPO_PATH} ref: ${SCRIPT_VERSION}"
