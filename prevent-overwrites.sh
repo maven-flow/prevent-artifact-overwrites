@@ -283,11 +283,10 @@ enforce_branch_version() {
         log_info "Project does not have a branch version. Changing to: $new_version"
     fi
 
-    local pom_dir
+    local pom_dir changes_made="false"
     pom_dir=$(dirname "$POM_FILE")
     while IFS= read -r pom; do
         if grep -q "$PROJECT_VERSION" "$pom"; then
-            log_info "Updating version in $pom"
             # Replace only the project version (first <version> outside <parent>),
             # not dependency versions that happen to match.
             awk -v old="$PROJECT_VERSION" -v new="$new_version" '
@@ -298,11 +297,29 @@ enforce_branch_version() {
                     done=1
                 }
                 { print }
-            ' "$pom" > "${pom}.tmp" && mv "${pom}.tmp" "$pom"
+            ' "$pom" > "${pom}.tmp"
+
+            # Only rewrite (and later commit) if the awk actually changed something.
+            # A pom whose project version is inherited from <parent> matches the
+            # grep above but is skipped by the awk, so guarding here avoids an
+            # empty `git commit` aborting the run under `set -e`.
+            if ! cmp -s "$pom" "${pom}.tmp"; then
+                log_info "Updating version in $pom"
+                mv "${pom}.tmp" "$pom"
+                changes_made="true"
+            else
+                rm -f "${pom}.tmp"
+            fi
         fi
     done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
-    git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
-    ENFORCE_CHANGES_MADE="true"
+
+    if [[ "$changes_made" == "true" ]]; then
+        git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
+        ENFORCE_CHANGES_MADE="true"
+    else
+        log_info "No pom file required a project version change."
+        ENFORCE_CHANGES_MADE="false"
+    fi
 }
 
 # Apply pinned dependency versions from the config (feature branches).
