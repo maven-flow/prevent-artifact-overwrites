@@ -32,6 +32,53 @@ Set the value of parameter `enforce-branch-version` to `false`.
 
 When running on a non-feature branch, the action will check versions of all dependencies and if it finds a branch-specific version of a dependency, it will change it back to it's original value. As in the case of running on a library, this means that you don't have to worry about changing the dependency versions when merging into `develop`.
 
+## Custom Per-Branch Version Pinning
+
+By default the branch-specific version is derived automatically from the branch name (`1.2.3-SNAPSHOT` → `1.2.3-feature-foo-SNAPSHOT`). If you need to pin the project version and/or specific dependency versions to explicit values for specific branches, add an optional configuration file to your repository (default path: `.prevent-overwrites.conf`, configurable via the `config-file` input).
+
+If the file does not exist, or if it has no entry matching the current branch, behaviour is unchanged.
+
+### Format
+
+The file is a simple whitespace-separated table. Blank lines and lines starting with `#` are ignored.
+
+```
+# branch-pattern   target                             value
+feature/f1         project-version                    1.2.3-f1-SNAPSHOT
+feature/f1         dependency:com.example:d1          2.0.0-f1-SNAPSHOT
+feature/f1         dependency:com.example:d2          3.0.0-f1-SNAPSHOT
+feature/f2         project-version                    1.2.3-f2-SNAPSHOT
+```
+
+- **`branch-pattern`** — glob-matched against the current branch name (same matching as `core-branches`, so `feature/*` works).
+- **`target`** — one of `project-version`, `dependency:<groupId>:<artifactId>`, or `exclusive-version-suffix`.
+- **`value`** — for the pin targets, the version to pin to; for `exclusive-version-suffix`, the suffix to protect.
+
+### Rules
+
+- **Pinned values must follow the `<base>-<suffix>-SNAPSHOT` pattern** (e.g. `1.2.3-f1-SNAPSHOT`, not `vf1`). This is what allows the version to be **automatically reverted to `<base>-SNAPSHOT`** when the branch is merged into a core branch — exactly like an auto-derived branch version. A value that does not match the pattern is a hard error and fails the job.
+- **`project-version`** pins only take effect when `enforce-branch-version` is `true` (they replace the auto-derived project version, even if the pom already carries an inherited branch suffix).
+- **`dependency:*`** pins apply on non-core branches regardless of `enforce-branch-version`, so application projects can pin the dependency versions they build against.
+  - A pin matches **every** `<dependency>` block with the given `groupId`/`artifactId`, including those under `<dependencyManagement>` and inside plugin `<dependencies>`. If you rely on this, make sure the coordinates are specific enough.
+  - Only a literal `<version>…</version>` inside the matched block is rewritten. If the version is expressed as a property reference (`<version>${my.dep.version}</version>`), the pin replaces the reference with the pinned literal rather than updating the property — pin the property value in the pom yourself if you need the reference preserved.
+- If the project already has a branch-specific version, it is left alone (same as the default behaviour) — unless its suffix has been declared exclusive (see below).
+
+### Exclusive version suffixes
+
+By default, when a pom already carries a branch-specific version, it is left untouched. This is a problem for **long-lived feature branches**: if you branch off `feature/abc` (whose pom is `1.2.3-feature-abc-SNAPSHOT`), your new branch inherits that version and would publish under — and overwrite — `feature/abc`'s artifacts.
+
+The `exclusive-version-suffix` target marks a suffix as belonging to a single branch. When the pom carries that suffix but the current branch is **not** the one it derives from, the version is re-derived for the current branch instead of being left alone. On the owning branch it is left untouched, and re-runs make no change.
+
+```
+# branch-pattern  target                    value
+*                 exclusive-version-suffix  feature-abc
+```
+
+- The **value is a version suffix**, not a branch name: it is the part between `<base>-` and `-SNAPSHOT`, with slashes already replaced by hyphens (`feature/abc` → `feature-abc`).
+- Use `*` for the branch-pattern to enforce the suffix everywhere. Note that in glob matching `*` already spans slashes, so `**/*` would only match branches that contain a `/` — use `*` to match every branch.
+- Declare one line per suffix you want to protect.
+- With no `exclusive-version-suffix` entry, the default (leave inherited versions alone) is unchanged.
+
 ## GitHub Actions Usage
 
 Preconditions:
@@ -146,6 +193,12 @@ jobs:
 
 **Default value:** `main master develop release*`
 
+### `config-file`
+
+**Optional.** Path to a per-branch version pinning config file (see [Custom Per-Branch Version Pinning](#custom-per-branch-version-pinning)). If the file does not exist, behaviour is unchanged.
+
+**Default value:** `.prevent-overwrites.conf`
+
 ## GitLab CI/CD Usage
 
 This tool is also available as a GitLab CI/CD Component.
@@ -221,6 +274,7 @@ build:
 | `maven-args` | No | `""` | **Deprecated.** No longer used. |
 | `pom-file` | No | `pom.xml` | Path to Maven POM file |
 | `core-branches` | No | `main master develop release*` | Branch patterns that should NOT receive a branch-specific version suffix (supports globs) |
+| `config-file` | No | `.prevent-overwrites.conf` | Path to a per-branch version pinning config file (see [Custom Per-Branch Version Pinning](#custom-per-branch-version-pinning)) |
 | `stage` | No | `prepare` | Pipeline stage for the job |
 | `image` | No | `maven:3.9-eclipse-temurin-17` | Docker image for the job |
 | `script-repo-path` | No | `maven-flow/prevent-artifact-overwrites` | GitLab repo path for the script |

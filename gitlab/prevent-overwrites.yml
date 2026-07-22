@@ -46,6 +46,10 @@ spec:
       type: string
       default: "main master develop release*"
       description: "Space-separated list of branch patterns that should NOT receive a branch-specific version suffix (supports glob patterns like 'release*')"
+    config-file:
+      type: string
+      default: ".prevent-overwrites.conf"
+      description: "Path to an optional per-branch version pinning config file (see README)."
     rerun-on-change:
       type: boolean
       default: false
@@ -64,6 +68,7 @@ prevent-overwrites:
     SCRIPT_REPO_PATH: $[[ inputs.script-repo-path ]]
     SCRIPT_VERSION: $[[ inputs.script-version ]]
     CORE_BRANCHES: $[[ inputs.core-branches ]]
+    CONFIG_FILE: $[[ inputs.config-file ]]
     RERUN_ON_CHANGE: $[[ inputs.rerun-on-change ]]
     OUTPUT_FILE: /tmp/prevent-overwrites-output.env
   before_script:
