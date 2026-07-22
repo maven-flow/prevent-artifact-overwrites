@@ -194,6 +194,8 @@ load_config_overrides() {
                 if [[ -z "$PINNED_PROJECT_VERSION" ]]; then
                     PINNED_PROJECT_VERSION="$value"
                     log_info "Pin: project-version -> $value"
+                else
+                    log_error "Multiple project-version pins match branch '$BRANCH_NAME' in $CONFIG_FILE; keeping '$PINNED_PROJECT_VERSION' and ignoring '$value'."
                 fi
                 ;;
             dependency:*:*)
