@@ -20,7 +20,9 @@ The action performs different tasks based on the type of project it is running o
 
 Set the value of parameter `enforce-branch-version` to `true`.
 
-If the action detects it is running on a feature branch, it will append the branch name to the project version with slashes replaced by hyphens. For example, when running on a branch named `feature/FEA-123-comments`, the version will be changed from `1.1.0-SNAPSHOT` into `1.1.0-feature-FEA-123-comments-SNAPSHOT`. You can also change the version manually into a different value, for example `1.1.0-FEA-123-SNAPSHOT`.
+If the action detects it is running on a feature branch, it will append the branch name to the project version with slashes replaced by hyphens. For example, when running on a branch named `feature/FEA-123-comments`, the version will be changed from `1.1.0-SNAPSHOT` into `1.1.0-feature-FEA-123-comments-SNAPSHOT`.
+
+The version is always re-derived for the **current** branch. If the pom already carries a *different* branch's suffix — which happens when you create a branch off another long-lived feature branch — the suffix is replaced with the current branch's, so the new branch doesn't publish under (and overwrite) the parent branch's version. Re-runs on the same branch make no change. If you need a specific custom version for a branch, set an explicit [`project-version` pin](#custom-per-branch-version-pinning) instead.
 
 When running on a non-feature branch, the action will change the branch-specific version back into the original value. This means that you don't have to worry about removing the version postfix when you want to merge your feature branch into `develop`. You can just merge the modified version, and the postfix will be removed automatically.
 
@@ -59,7 +61,7 @@ feature/f2         project-version                    1.2.3-f2-SNAPSHOT
 - **Pinned values must follow the `<base>-<suffix>-SNAPSHOT` pattern** (e.g. `1.2.3-f1-SNAPSHOT`, not `vf1`). This is what allows the version to be **automatically reverted to `<base>-SNAPSHOT`** when the branch is merged into a core branch — exactly like an auto-derived branch version. A value that does not match the pattern is a hard error and fails the job.
 - **`project-version`** pins only take effect when `enforce-branch-version` is `true` (they replace the auto-derived project version).
 - **`dependency:*`** pins apply on feature branches regardless of `enforce-branch-version`, so application projects can pin the dependency versions they build against.
-- If the project already has a branch-specific version, it is left alone (same as the default behaviour).
+- A `project-version` pin always takes precedence over the auto-derived version, including when the pom already carries an inherited branch suffix.
 
 ## GitHub Actions Usage
 

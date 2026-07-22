@@ -2,8 +2,10 @@
 set -euo pipefail
 
 # ==========================================================================
-# Test: enforce_branch_version should skip if project already has a
-#       branch-specific version.
+# Test: when a branch is created off another feature branch, its pom carries
+#       the parent branch's suffix (e.g. 1.2.3-feature-old-SNAPSHOT). By
+#       default the version is now RE-DERIVED for the current branch instead
+#       of being left as the inherited value.
 # ==========================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -15,6 +17,7 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 echo "=== Setting up test repo in $WORK_DIR ==="
 
 git init "$WORK_DIR" --quiet
+# Starting pom has an inherited branch version (1.2.3-feature-old-SNAPSHOT)
 cp "$SCRIPT_DIR/sample-pom-with-branch-version.xml" "$WORK_DIR/pom.xml"
 cd "$WORK_DIR"
 git add pom.xml
@@ -32,7 +35,7 @@ bash "$REPO_ROOT/prevent-overwrites.sh"
 
 echo ""
 echo "=== Comparing result to expected output ==="
-if diff "$WORK_DIR/pom.xml" "$SCRIPT_DIR/sample-pom-with-branch-version.xml"; then
+if diff "$WORK_DIR/pom.xml" "$SCRIPT_DIR/expected-enforce-rederive-inherited-version.xml"; then
     echo "=== TEST PASSED ==="
     exit 0
 else
