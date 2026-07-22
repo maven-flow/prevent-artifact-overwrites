@@ -200,53 +200,42 @@ enforce_branch_version() {
 
     local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
 
-    # Work out the version this branch should have.
-    local new_version
-    if [[ -n "${PINNED_PROJECT_VERSION:-}" ]]; then
-        new_version="$PINNED_PROJECT_VERSION"
-    else
-        # Derive from the base version, stripping any existing branch suffix.
-        # This way a branch created off another feature branch gets its OWN
-        # suffix instead of inheriting (and overwriting) the parent branch's
-        # version. For an explicit custom version, use a project-version pin.
-        local base_version="$PROJECT_VERSION"
-        if [[ "$PROJECT_VERSION" =~ $version_regexp ]]; then
-            local prefix
-            prefix=$(echo "$PROJECT_VERSION" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
-            base_version="$prefix-SNAPSHOT"
-        fi
-        local branch_postfix
-        branch_postfix=$(echo "$BRANCH_NAME" | tr / -)
-        new_version="${base_version%-SNAPSHOT}-${branch_postfix}-SNAPSHOT"
-    fi
-
-    if [[ "$PROJECT_VERSION" == "$new_version" ]]; then
-        log_info "Project version already correct for this branch: $PROJECT_VERSION"
+    if [[ "$PROJECT_VERSION" =~ $version_regexp ]]; then
+        log_info "Project already has a branch version."
         ENFORCE_CHANGES_MADE="false"
-        return
-    fi
-
-    log_info "Changing project version to: $new_version"
-    local pom_dir
-    pom_dir=$(dirname "$POM_FILE")
-    while IFS= read -r pom; do
-        if grep -q "$PROJECT_VERSION" "$pom"; then
-            log_info "Updating version in $pom"
-            # Replace only the project version (first <version> outside <parent>),
-            # not dependency versions that happen to match.
-            awk -v old="$PROJECT_VERSION" -v new="$new_version" '
-                /<parent>/ { in_parent=1 }
-                /<\/parent>/ { in_parent=0 }
-                !in_parent && !done && index($0, "<version>" old "</version>") {
-                    sub("<version>" old "</version>", "<version>" new "</version>")
-                    done=1
-                }
-                { print }
-            ' "$pom" > "${pom}.tmp" && mv "${pom}.tmp" "$pom"
+    else
+        local new_version
+        if [[ -n "${PINNED_PROJECT_VERSION:-}" ]]; then
+            new_version="$PINNED_PROJECT_VERSION"
+            log_info "Project does not have a branch version. Using pinned version: $new_version"
+        else
+            local branch_postfix
+            branch_postfix=$(echo "$BRANCH_NAME" | tr / -)
+            local version_without_snapshot="${PROJECT_VERSION%-SNAPSHOT}"
+            new_version="${version_without_snapshot}-${branch_postfix}-SNAPSHOT"
+            log_info "Project does not have a branch version. Changing to: $new_version"
         fi
-    done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
-    git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
-    ENFORCE_CHANGES_MADE="true"
+        local pom_dir
+        pom_dir=$(dirname "$POM_FILE")
+        while IFS= read -r pom; do
+            if grep -q "$PROJECT_VERSION" "$pom"; then
+                log_info "Updating version in $pom"
+                # Replace only the project version (first <version> outside <parent>),
+                # not dependency versions that happen to match.
+                awk -v old="$PROJECT_VERSION" -v new="$new_version" '
+                    /<parent>/ { in_parent=1 }
+                    /<\/parent>/ { in_parent=0 }
+                    !in_parent && !done && index($0, "<version>" old "</version>") {
+                        sub("<version>" old "</version>", "<version>" new "</version>")
+                        done=1
+                    }
+                    { print }
+                ' "$pom" > "${pom}.tmp" && mv "${pom}.tmp" "$pom"
+            fi
+        done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
+        git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
+        ENFORCE_CHANGES_MADE="true"
+    fi
 }
 
 # Apply pinned dependency versions from the config (feature branches).

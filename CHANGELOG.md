@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-detection of CI platform (GitHub Actions, GitLab CI/CD, Bitbucket, CircleCI, Travis CI)
 
 ### Changed
-- **Behavior change:** on a feature branch, the project version is now always re-derived for the current branch. Previously, if the version already had a branch suffix it was left untouched; now a suffix belonging to a *different* branch is replaced with the current branch's. This fixes branches created off a long-lived feature branch inheriting and overwriting the parent branch's version. Re-runs on the same branch remain unchanged. To keep an explicit custom version for a branch, set a `project-version` pin in the config file.
 - Replaced Maven commands with direct POM file manipulation (sed/grep), significantly improving performance by eliminating slow Maven dependency resolution and downloads
 - Refactored `action.yml` to use the shared `prevent-overwrites.sh` script instead of inline bash
 - `maven-args` input is deprecated and will be removed in a future version (only kept now for backward compatibility)
