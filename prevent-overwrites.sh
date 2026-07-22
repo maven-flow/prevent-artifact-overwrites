@@ -172,11 +172,11 @@ load_config_overrides() {
     log_info "Loading config from '$CONFIG_FILE' for branch '$BRANCH_NAME'..."
 
     local pattern target value line
-    while read -r line; do
+    while read -r line || [[ -n "$line" ]]; do
         # Remove inline comments (everything from # onwards)
         line="${line%%#*}"
-        # Skip blank lines
-        [[ -z "$line" || "$line" =~ ^[[:space:]]*$ ]] && continue
+        # Skip blank and whitespace-only lines
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
 
         read -r pattern target value _ <<< "$line"
 
