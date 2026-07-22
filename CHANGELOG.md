@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Custom per-branch version pinning: pin the project version and/or specific dependency versions to explicit values for chosen branches via an optional config file
+- `exclusive-version-suffix` config directive: mark a branch suffix as owned by a single branch so that branches created off a long-lived feature branch re-derive their own version instead of inheriting (and overwriting) the parent branch's. Opt-in; the default behavior of leaving inherited versions untouched is unchanged.
 - Input attribute `core-branches`
 - GitLab CI/CD Component support (`gitlab/prevent-overwrites.yml`)
 - Standalone `prevent-overwrites.sh` script that can run on any CI platform

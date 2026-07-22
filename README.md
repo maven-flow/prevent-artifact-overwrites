@@ -51,15 +51,31 @@ feature/f2         project-version                    1.2.3-f2-SNAPSHOT
 ```
 
 - **`branch-pattern`** — glob-matched against the current branch name (same matching as `core-branches`, so `feature/*` works).
-- **`target`** — either `project-version` or `dependency:<groupId>:<artifactId>`.
-- **`value`** — the version to pin to.
+- **`target`** — one of `project-version`, `dependency:<groupId>:<artifactId>`, or `exclusive-version-suffix`.
+- **`value`** — for the pin targets, the version to pin to; for `exclusive-version-suffix`, the suffix to protect.
 
 ### Rules
 
 - **Pinned values must follow the `<base>-<suffix>-SNAPSHOT` pattern** (e.g. `1.2.3-f1-SNAPSHOT`, not `vf1`). This is what allows the version to be **automatically reverted to `<base>-SNAPSHOT`** when the branch is merged into a core branch — exactly like an auto-derived branch version. A value that does not match the pattern is a hard error and fails the job.
-- **`project-version`** pins only take effect when `enforce-branch-version` is `true` (they replace the auto-derived project version).
-- **`dependency:*`** pins apply on feature branches regardless of `enforce-branch-version`, so application projects can pin the dependency versions they build against.
-- If the project already has a branch-specific version, it is left alone (same as the default behaviour).
+- **`project-version`** pins only take effect when `enforce-branch-version` is `true` (they replace the auto-derived project version, even if the pom already carries an inherited branch suffix).
+- **`dependency:*`** pins apply on non-core branches regardless of `enforce-branch-version`, so application projects can pin the dependency versions they build against.
+- If the project already has a branch-specific version, it is left alone (same as the default behaviour) — unless its suffix has been declared exclusive (see below).
+
+### Exclusive version suffixes
+
+By default, when a pom already carries a branch-specific version, it is left untouched. This is a problem for **long-lived feature branches**: if you branch off `feature/abc` (whose pom is `1.2.3-feature-abc-SNAPSHOT`), your new branch inherits that version and would publish under — and overwrite — `feature/abc`'s artifacts.
+
+The `exclusive-version-suffix` target marks a suffix as belonging to a single branch. When the pom carries that suffix but the current branch is **not** the one it derives from, the version is re-derived for the current branch instead of being left alone. On the owning branch it is left untouched, and re-runs make no change.
+
+```
+# branch-pattern  target                    value
+*                 exclusive-version-suffix  feature-abc
+```
+
+- The **value is a version suffix**, not a branch name: it is the part between `<base>-` and `-SNAPSHOT`, with slashes already replaced by hyphens (`feature/abc` → `feature-abc`).
+- Use `*` for the branch-pattern to enforce the suffix everywhere. Note that in glob matching `*` already spans slashes, so `**/*` would only match branches that contain a `/` — use `*` to match every branch.
+- Declare one line per suffix you want to protect.
+- With no `exclusive-version-suffix` entry, the default (leave inherited versions alone) is unchanged.
 
 ## GitHub Actions Usage
 
