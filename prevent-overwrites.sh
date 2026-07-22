@@ -142,7 +142,9 @@ validate_pinned_version() {
 
 # Load per-branch configuration from CONFIG_FILE (if present).
 #
-# Format (whitespace-separated columns; '#' comments and blank lines ignored):
+# Format (whitespace-separated columns; blank lines ignored, and everything
+# from a '#' to end of line is treated as a comment — whether the '#' starts
+# the line or trails a regular entry):
 #   <branch-pattern>  project-version                     <pinned-version>
 #   <branch-pattern>  dependency:<groupId>:<artifactId>   <pinned-version>
 #   <branch-pattern>  exclusive-version-suffix            <suffix>
@@ -169,10 +171,14 @@ load_config_overrides() {
 
     log_info "Loading config from '$CONFIG_FILE' for branch '$BRANCH_NAME'..."
 
-    local pattern target value
-    while read -r pattern target value _; do
-        # Skip blank lines and comments
-        [[ -z "$pattern" || "$pattern" == \#* ]] && continue
+    local pattern target value line
+    while read -r line; do
+        # Remove inline comments (everything from # onwards)
+        line="${line%%#*}"
+        # Skip blank lines
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*$ ]] && continue
+
+        read -r pattern target value _ <<< "$line"
 
         if [[ -z "$target" || -z "$value" ]]; then
             log_error "Malformed line in $CONFIG_FILE (expected 3 columns): $pattern $target $value"
