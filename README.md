@@ -59,6 +59,8 @@ feature/f2         project-version                    1.2.3-f2-SNAPSHOT
 - **Pinned values must follow the `<base>-<suffix>-SNAPSHOT` pattern** (e.g. `1.2.3-f1-SNAPSHOT`, not `vf1`). This is what allows the version to be **automatically reverted to `<base>-SNAPSHOT`** when the branch is merged into a core branch — exactly like an auto-derived branch version. A value that does not match the pattern is a hard error and fails the job.
 - **`project-version`** pins only take effect when `enforce-branch-version` is `true` (they replace the auto-derived project version, even if the pom already carries an inherited branch suffix).
 - **`dependency:*`** pins apply on non-core branches regardless of `enforce-branch-version`, so application projects can pin the dependency versions they build against.
+  - A pin matches **every** `<dependency>` block with the given `groupId`/`artifactId`, including those under `<dependencyManagement>` and inside plugin `<dependencies>`. If you rely on this, make sure the coordinates are specific enough.
+  - Only a literal `<version>…</version>` inside the matched block is rewritten. If the version is expressed as a property reference (`<version>${my.dep.version}</version>`), the pin replaces the reference with the pinned literal rather than updating the property — pin the property value in the pom yourself if you need the reference preserved.
 - If the project already has a branch-specific version, it is left alone (same as the default behaviour) — unless its suffix has been declared exclusive (see below).
 
 ### Exclusive version suffixes
