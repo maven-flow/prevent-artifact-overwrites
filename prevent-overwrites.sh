@@ -286,23 +286,23 @@ enforce_branch_version() {
     local pom_dir
     pom_dir=$(dirname "$POM_FILE")
     while IFS= read -r pom; do
-            if grep -q "$PROJECT_VERSION" "$pom"; then
-                log_info "Updating version in $pom"
-                # Replace only the project version (first <version> outside <parent>),
-                # not dependency versions that happen to match.
-                awk -v old="$PROJECT_VERSION" -v new="$new_version" '
-                    /<parent>/ { in_parent=1 }
-                    /<\/parent>/ { in_parent=0 }
-                    !in_parent && !done && index($0, "<version>" old "</version>") {
-                        sub("<version>" old "</version>", "<version>" new "</version>")
-                        done=1
-                    }
-                    { print }
-                ' "$pom" > "${pom}.tmp" && mv "${pom}.tmp" "$pom"
-            fi
-        done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
-        git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
-        ENFORCE_CHANGES_MADE="true"
+        if grep -q "$PROJECT_VERSION" "$pom"; then
+            log_info "Updating version in $pom"
+            # Replace only the project version (first <version> outside <parent>),
+            # not dependency versions that happen to match.
+            awk -v old="$PROJECT_VERSION" -v new="$new_version" '
+                /<parent>/ { in_parent=1 }
+                /<\/parent>/ { in_parent=0 }
+                !in_parent && !done && index($0, "<version>" old "</version>") {
+                    sub("<version>" old "</version>", "<version>" new "</version>")
+                    done=1
+                }
+                { print }
+            ' "$pom" > "${pom}.tmp" && mv "${pom}.tmp" "$pom"
+        fi
+    done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
+    git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
+    ENFORCE_CHANGES_MADE="true"
 }
 
 # Apply pinned dependency versions from the config (feature branches).
