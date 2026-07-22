@@ -132,10 +132,13 @@ setup_git() {
 # that the core-branch restore logic can strip it back to <base>-SNAPSHOT.
 validate_pinned_version() {
     local value="$1" target="$2" pattern="$3"
-    local pin_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
+    # Restrict to a safe character set: the value later flows into
+    # `sed "s|${version}|..."` on core-branch restore, so characters like
+    # '|', '&', '/' or whitespace must not be allowed through here.
+    local pin_regexp='^[0-9]+\.[0-9]+\.[0-9][0-9A-Za-z._-]*-[0-9A-Za-z._-]+-SNAPSHOT$'
     if [[ ! "$value" =~ $pin_regexp ]]; then
         log_error "Invalid pinned version '$value' for target '$target' (branch pattern '$pattern')."
-        log_error "Pinned versions must match '<base>-<suffix>-SNAPSHOT' (e.g. 1.2.3-f1-SNAPSHOT) so they can be reverted on core branches."
+        log_error "Pinned versions must match '<base>-<suffix>-SNAPSHOT' (e.g. 1.2.3-f1-SNAPSHOT), using only letters, digits, '.', '_' and '-', so they can be reverted on core branches."
         exit 1
     fi
 }
