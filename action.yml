@@ -42,6 +42,11 @@ inputs:
     default: "main master develop release*"
     required: false
     type: string
+  config-file:
+    description: "Path to an optional per-branch version pinning config file (see README)."
+    default: ".prevent-overwrites.conf"
+    required: false
+    type: string
 
 outputs:
   changes-made:
@@ -63,6 +68,7 @@ runs:
         GIT_USER_NAME: ${{ inputs.git-user-name }}
         GIT_USER_EMAIL: ${{ inputs.git-user-email }}
         CORE_BRANCHES: ${{ inputs.core-branches }}
+        CONFIG_FILE: ${{ inputs.config-file }}
       run: |
         chmod +x "${{ github.action_path }}/prevent-overwrites.sh"
         "${{ github.action_path }}/prevent-overwrites.sh"

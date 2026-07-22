@@ -25,6 +25,10 @@ CORE_BRANCHES="${CORE_BRANCHES:-main master develop release*}"
 # Output file for CI integration (optional, for GitLab dotenv artifacts)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
 
+# Optional per-branch version pinning configuration (see README).
+# If the file does not exist, behaviour is unchanged.
+CONFIG_FILE="${CONFIG_FILE:-.prevent-overwrites.conf}"
+
 # --- Utility Functions ---
 
 log_info() {
@@ -124,6 +128,69 @@ setup_git() {
     git config --local user.email "$GIT_USER_EMAIL"
 }
 
+# Load per-branch version pins from CONFIG_FILE (if present).
+#
+# Format (whitespace-separated columns; '#' comments and blank lines ignored):
+#   <branch-pattern>  project-version              <pinned-version>
+#   <branch-pattern>  dependency:<groupId>:<artifactId>  <pinned-version>
+#
+# The branch-pattern is glob-matched against BRANCH_NAME (like CORE_BRANCHES).
+# Only rows matching the current branch are collected. Pinned values MUST follow
+# the branch-version pattern so that the core-branch restore logic can strip them
+# back to <base>-SNAPSHOT on merge; a value that does not match is a hard error.
+load_config_overrides() {
+    PINNED_PROJECT_VERSION=""
+    PIN_DEP_KEYS=()
+    PIN_DEP_VERSIONS=()
+
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        log_info "No config file at '$CONFIG_FILE'. Using default behaviour."
+        return
+    fi
+
+    log_info "Loading version pins from '$CONFIG_FILE' for branch '$BRANCH_NAME'..."
+    local pin_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
+
+    local pattern target value
+    while read -r pattern target value _; do
+        # Skip blank lines and comments
+        [[ -z "$pattern" || "$pattern" == \#* ]] && continue
+
+        if [[ -z "$target" || -z "$value" ]]; then
+            log_error "Malformed line in $CONFIG_FILE (expected 3 columns): $pattern $target $value"
+            exit 1
+        fi
+
+        # shellcheck disable=SC2053
+        [[ "$BRANCH_NAME" == $pattern ]] || continue
+
+        if [[ ! "$value" =~ $pin_regexp ]]; then
+            log_error "Invalid pinned version '$value' for target '$target' (branch pattern '$pattern')."
+            log_error "Pinned versions must match '<base>-<suffix>-SNAPSHOT' (e.g. 1.2.3-f1-SNAPSHOT) so they can be reverted on core branches."
+            exit 1
+        fi
+
+        case "$target" in
+            project-version)
+                if [[ -z "$PINNED_PROJECT_VERSION" ]]; then
+                    PINNED_PROJECT_VERSION="$value"
+                    log_info "Pin: project-version -> $value"
+                fi
+                ;;
+            dependency:*:*)
+                local dep_key="${target#dependency:}"
+                PIN_DEP_KEYS+=("$dep_key")
+                PIN_DEP_VERSIONS+=("$value")
+                log_info "Pin: dependency $dep_key -> $value"
+                ;;
+            *)
+                log_error "Unknown target '$target' in $CONFIG_FILE (expected 'project-version' or 'dependency:<groupId>:<artifactId>')."
+                exit 1
+                ;;
+        esac
+    done < "$CONFIG_FILE"
+}
+
 enforce_branch_version() {
     if [[ "$ENFORCE_BRANCH_VERSION" != "true" ]]; then
         log_info "Project version enforcement is turned off."
@@ -137,12 +204,17 @@ enforce_branch_version() {
         log_info "Project already has a branch version."
         ENFORCE_CHANGES_MADE="false"
     else
-        local branch_postfix
-        branch_postfix=$(echo "$BRANCH_NAME" | tr / -)
-        local version_without_snapshot="${PROJECT_VERSION%-SNAPSHOT}"
-        local new_version="${version_without_snapshot}-${branch_postfix}-SNAPSHOT"
-
-        log_info "Project does not have a branch version. Changing to: $new_version"
+        local new_version
+        if [[ -n "${PINNED_PROJECT_VERSION:-}" ]]; then
+            new_version="$PINNED_PROJECT_VERSION"
+            log_info "Project does not have a branch version. Using pinned version: $new_version"
+        else
+            local branch_postfix
+            branch_postfix=$(echo "$BRANCH_NAME" | tr / -)
+            local version_without_snapshot="${PROJECT_VERSION%-SNAPSHOT}"
+            new_version="${version_without_snapshot}-${branch_postfix}-SNAPSHOT"
+            log_info "Project does not have a branch version. Changing to: $new_version"
+        fi
         local pom_dir
         pom_dir=$(dirname "$POM_FILE")
         while IFS= read -r pom; do
@@ -163,6 +235,77 @@ enforce_branch_version() {
         done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
         git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
         ENFORCE_CHANGES_MADE="true"
+    fi
+}
+
+# Apply pinned dependency versions from the config (feature branches).
+# Runs regardless of ENFORCE_BRANCH_VERSION, since application projects also
+# pin dependency versions. Idempotent: a dependency already at its pinned
+# version produces no change and therefore no commit.
+apply_dependency_pins() {
+    DEP_PIN_CHANGES_MADE="false"
+
+    if [[ "${#PIN_DEP_KEYS[@]}" -eq 0 ]]; then
+        return
+    fi
+
+    local changes_made="false"
+    local pom_dir
+    pom_dir=$(dirname "$POM_FILE")
+
+    local i dep_key dep_version group_id artifact_id
+    for i in "${!PIN_DEP_KEYS[@]}"; do
+        dep_key="${PIN_DEP_KEYS[$i]}"
+        dep_version="${PIN_DEP_VERSIONS[$i]}"
+        group_id="${dep_key%%:*}"
+        artifact_id="${dep_key#*:}"
+
+        while IFS= read -r pom; do
+            # Rewrite the <version> of the matching <dependency> block only.
+            awk -v g="$group_id" -v a="$artifact_id" -v nv="$dep_version" '
+                function flush() {
+                    if (dep_g == g && dep_a == a) {
+                        for (i = 0; i < n; i++) {
+                            line = buf[i]
+                            if (line ~ /<version>.*<\/version>/) {
+                                sub(/<version>.*<\/version>/, "<version>" nv "</version>", line)
+                            }
+                            print line
+                        }
+                    } else {
+                        for (i = 0; i < n; i++) print buf[i]
+                    }
+                    in_dep = 0; n = 0; dep_g = ""; dep_a = ""
+                }
+                /<dependency>/ { in_dep = 1; n = 0; dep_g = ""; dep_a = ""; buf[n++] = $0; next }
+                in_dep {
+                    buf[n++] = $0
+                    if ($0 ~ /<groupId>[^<]*<\/groupId>/) {
+                        tmp = $0; sub(/.*<groupId>/, "", tmp); sub(/<\/groupId>.*/, "", tmp); dep_g = tmp
+                    }
+                    if ($0 ~ /<artifactId>[^<]*<\/artifactId>/) {
+                        tmp = $0; sub(/.*<artifactId>/, "", tmp); sub(/<\/artifactId>.*/, "", tmp); dep_a = tmp
+                    }
+                    if ($0 ~ /<\/dependency>/) { flush() }
+                    next
+                }
+                { print }
+                END { if (in_dep) flush() }
+            ' "$pom" > "${pom}.tmp"
+
+            if ! cmp -s "$pom" "${pom}.tmp"; then
+                log_info "Pinning dependency $dep_key to $dep_version in $pom"
+                mv "${pom}.tmp" "$pom"
+                changes_made="true"
+            else
+                rm -f "${pom}.tmp"
+            fi
+        done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
+    done
+
+    if [[ "$changes_made" == "true" ]]; then
+        git commit -a -m "Pinned branch-specific dependency versions.${COMMIT_MESSAGE_SUFFIX}"
+        DEP_PIN_CHANGES_MADE="true"
     fi
 }
 
@@ -241,6 +384,7 @@ main() {
 
     # Initialize change tracking
     ENFORCE_CHANGES_MADE="false"
+    DEP_PIN_CHANGES_MADE="false"
     REMOVE_VERSION_CHANGES_MADE="false"
     REMOVE_DEPS_CHANGES_MADE="false"
     CHANGES_MADE="false"
@@ -254,12 +398,16 @@ main() {
     # Get current project version
     get_project_version
 
+    # Load optional per-branch version pins
+    load_config_overrides
+
     # Setup git for commits
     setup_git
 
     # Execute based on branch type
     if [[ "$NEEDS_BRANCH_VERSION" == "true" ]]; then
         enforce_branch_version
+        apply_dependency_pins
     else
         remove_branch_version
         remove_dependency_branch_versions || true  # continue on error like original
@@ -267,6 +415,7 @@ main() {
 
     # Summarize changes
     if [[ "$ENFORCE_CHANGES_MADE" == "true" ||
+          "$DEP_PIN_CHANGES_MADE" == "true" ||
           "$REMOVE_VERSION_CHANGES_MADE" == "true" ||
           "$REMOVE_DEPS_CHANGES_MADE" == "true" ]]; then
         log_info "Changes have been made."

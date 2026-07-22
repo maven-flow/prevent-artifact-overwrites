@@ -32,6 +32,35 @@ Set the value of parameter `enforce-branch-version` to `false`.
 
 When running on a non-feature branch, the action will check versions of all dependencies and if it finds a branch-specific version of a dependency, it will change it back to it's original value. As in the case of running on a library, this means that you don't have to worry about changing the dependency versions when merging into `develop`.
 
+## Custom Per-Branch Version Pinning
+
+By default the branch-specific version is derived automatically from the branch name (`1.2.3-SNAPSHOT` → `1.2.3-feature-foo-SNAPSHOT`). If you need to pin the project version and/or specific dependency versions to explicit values for specific branches, add an optional configuration file to your repository (default path: `.prevent-overwrites.conf`, configurable via the `config-file` input).
+
+If the file does not exist, or if it has no entry matching the current branch, behaviour is unchanged.
+
+### Format
+
+The file is a simple whitespace-separated table. Blank lines and lines starting with `#` are ignored.
+
+```
+# branch-pattern   target                             value
+feature/f1         project-version                    1.2.3-f1-SNAPSHOT
+feature/f1         dependency:com.example:d1          2.0.0-f1-SNAPSHOT
+feature/f1         dependency:com.example:d2          3.0.0-f1-SNAPSHOT
+feature/f2         project-version                    1.2.3-f2-SNAPSHOT
+```
+
+- **`branch-pattern`** — glob-matched against the current branch name (same matching as `core-branches`, so `feature/*` works).
+- **`target`** — either `project-version` or `dependency:<groupId>:<artifactId>`.
+- **`value`** — the version to pin to.
+
+### Rules
+
+- **Pinned values must follow the `<base>-<suffix>-SNAPSHOT` pattern** (e.g. `1.2.3-f1-SNAPSHOT`, not `vf1`). This is what allows the version to be **automatically reverted to `<base>-SNAPSHOT`** when the branch is merged into a core branch — exactly like an auto-derived branch version. A value that does not match the pattern is a hard error and fails the job.
+- **`project-version`** pins only take effect when `enforce-branch-version` is `true` (they replace the auto-derived project version).
+- **`dependency:*`** pins apply on feature branches regardless of `enforce-branch-version`, so application projects can pin the dependency versions they build against.
+- If the project already has a branch-specific version, it is left alone (same as the default behaviour).
+
 ## GitHub Actions Usage
 
 Preconditions:
@@ -146,6 +175,12 @@ jobs:
 
 **Default value:** `main master develop release*`
 
+### `config-file`
+
+**Optional.** Path to a per-branch version pinning config file (see [Custom Per-Branch Version Pinning](#custom-per-branch-version-pinning)). If the file does not exist, behaviour is unchanged.
+
+**Default value:** `.prevent-overwrites.conf`
+
 ## GitLab CI/CD Usage
 
 This tool is also available as a GitLab CI/CD Component.
@@ -221,6 +256,7 @@ build:
 | `maven-args` | No | `""` | **Deprecated.** No longer used. |
 | `pom-file` | No | `pom.xml` | Path to Maven POM file |
 | `core-branches` | No | `main master develop release*` | Branch patterns that should NOT receive a branch-specific version suffix (supports globs) |
+| `config-file` | No | `.prevent-overwrites.conf` | Path to a per-branch version pinning config file (see [Custom Per-Branch Version Pinning](#custom-per-branch-version-pinning)) |
 | `stage` | No | `prepare` | Pipeline stage for the job |
 | `image` | No | `maven:3.9-eclipse-temurin-17` | Docker image for the job |
 | `script-repo-path` | No | `maven-flow/prevent-artifact-overwrites` | GitLab repo path for the script |
