@@ -51,20 +51,8 @@ feature/f2         project-version                    1.2.3-f2-SNAPSHOT
 ```
 
 - **`branch-pattern`** — glob-matched against the current branch name (same matching as `core-branches`, so `feature/*` works).
-- **`target`** — one of `project-version`, `dependency:<groupId>:<artifactId>`, or `reset-inherited-version`.
-- **`value`** — the version to pin to (for the pin targets), or `true`/`false` (for `reset-inherited-version`).
-
-### Resetting inherited versions
-
-By default, if the project version already has a branch suffix, it is left untouched (so re-runs are idempotent and manually-set versions are honoured). This causes a problem for branches created **off a long-lived feature branch**: the new branch inherits the parent branch's version (e.g. `1.2.3-feature-big-thing-SNAPSHOT`) and would keep publishing under it, overwriting the parent's artifacts.
-
-To make such branches re-derive their own version, add a `reset-inherited-version` rule:
-
-```
-feature/*  reset-inherited-version  true
-```
-
-With this in place, a branch `feature/sub-task` created from `feature/big-thing` has its version re-derived from the base to `1.2.3-feature-sub-task-SNAPSHOT`. Re-runs on the same branch remain idempotent (the version already matches, so nothing changes). Note this also overrides any manually-set version on matching branches — use a `project-version` pin instead when you want an explicit custom version.
+- **`target`** — either `project-version` or `dependency:<groupId>:<artifactId>`.
+- **`value`** — the version to pin to.
 
 ### Rules
 

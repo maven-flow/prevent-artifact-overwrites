@@ -128,12 +128,11 @@ setup_git() {
     git config --local user.email "$GIT_USER_EMAIL"
 }
 
-# Load per-branch rules from CONFIG_FILE (if present).
+# Load per-branch version pins from CONFIG_FILE (if present).
 #
 # Format (whitespace-separated columns; '#' comments and blank lines ignored):
-#   <branch-pattern>  project-version                     <pinned-version>
-#   <branch-pattern>  dependency:<groupId>:<artifactId>   <pinned-version>
-#   <branch-pattern>  reset-inherited-version             true|false
+#   <branch-pattern>  project-version              <pinned-version>
+#   <branch-pattern>  dependency:<groupId>:<artifactId>  <pinned-version>
 #
 # The branch-pattern is glob-matched against BRANCH_NAME (like CORE_BRANCHES).
 # Only rows matching the current branch are collected. Pinned values MUST follow
@@ -143,14 +142,13 @@ load_config_overrides() {
     PINNED_PROJECT_VERSION=""
     PIN_DEP_KEYS=()
     PIN_DEP_VERSIONS=()
-    RESET_INHERITED_VERSION="false"
 
     if [[ ! -f "$CONFIG_FILE" ]]; then
         log_info "No config file at '$CONFIG_FILE'. Using default behaviour."
         return
     fi
 
-    log_info "Loading rules from '$CONFIG_FILE' for branch '$BRANCH_NAME'..."
+    log_info "Loading version pins from '$CONFIG_FILE' for branch '$BRANCH_NAME'..."
     local pin_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
 
     local pattern target value
@@ -166,47 +164,31 @@ load_config_overrides() {
         # shellcheck disable=SC2053
         [[ "$BRANCH_NAME" == $pattern ]] || continue
 
+        if [[ ! "$value" =~ $pin_regexp ]]; then
+            log_error "Invalid pinned version '$value' for target '$target' (branch pattern '$pattern')."
+            log_error "Pinned versions must match '<base>-<suffix>-SNAPSHOT' (e.g. 1.2.3-f1-SNAPSHOT) so they can be reverted on core branches."
+            exit 1
+        fi
+
         case "$target" in
             project-version)
-                validate_pinned_version "$value" "$target" "$pattern"
                 if [[ -z "$PINNED_PROJECT_VERSION" ]]; then
                     PINNED_PROJECT_VERSION="$value"
-                    log_info "Rule: project-version -> $value"
+                    log_info "Pin: project-version -> $value"
                 fi
                 ;;
             dependency:*:*)
-                validate_pinned_version "$value" "$target" "$pattern"
                 local dep_key="${target#dependency:}"
                 PIN_DEP_KEYS+=("$dep_key")
                 PIN_DEP_VERSIONS+=("$value")
-                log_info "Rule: dependency $dep_key -> $value"
-                ;;
-            reset-inherited-version)
-                if [[ "$value" != "true" && "$value" != "false" ]]; then
-                    log_error "Invalid value '$value' for reset-inherited-version (branch pattern '$pattern'); expected 'true' or 'false'."
-                    exit 1
-                fi
-                RESET_INHERITED_VERSION="$value"
-                log_info "Rule: reset-inherited-version -> $value"
+                log_info "Pin: dependency $dep_key -> $value"
                 ;;
             *)
-                log_error "Unknown target '$target' in $CONFIG_FILE (expected 'project-version', 'dependency:<groupId>:<artifactId>', or 'reset-inherited-version')."
+                log_error "Unknown target '$target' in $CONFIG_FILE (expected 'project-version' or 'dependency:<groupId>:<artifactId>')."
                 exit 1
                 ;;
         esac
     done < "$CONFIG_FILE"
-}
-
-# Fail hard unless the pinned value follows the '<base>-<suffix>-SNAPSHOT'
-# pattern, which is required so the core-branch restore logic can revert it.
-validate_pinned_version() {
-    local value="$1" target="$2" pattern="$3"
-    local pin_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
-    if [[ ! "$value" =~ $pin_regexp ]]; then
-        log_error "Invalid pinned version '$value' for target '$target' (branch pattern '$pattern')."
-        log_error "Pinned versions must match '<base>-<suffix>-SNAPSHOT' (e.g. 1.2.3-f1-SNAPSHOT) so they can be reverted on core branches."
-        exit 1
-    fi
 }
 
 enforce_branch_version() {
@@ -218,64 +200,42 @@ enforce_branch_version() {
 
     local version_regexp='^[0-9]+\.[0-9]+\.[0-9].*-.+-SNAPSHOT$'
 
-    # Work out the version this branch should have.
-    local new_version
-    if [[ -n "${PINNED_PROJECT_VERSION:-}" ]]; then
-        new_version="$PINNED_PROJECT_VERSION"
+    if [[ "$PROJECT_VERSION" =~ $version_regexp ]]; then
+        log_info "Project already has a branch version."
+        ENFORCE_CHANGES_MADE="false"
     else
-        # Derive from the base version, stripping any existing branch suffix so
-        # that branches created off another feature branch get their own suffix
-        # instead of inheriting the parent branch's version.
-        local base_version="$PROJECT_VERSION"
-        if [[ "$PROJECT_VERSION" =~ $version_regexp ]]; then
-            local prefix
-            prefix=$(echo "$PROJECT_VERSION" | grep -oE "^[0-9]+\.[0-9]+\.[0-9](\-rc(\.[0-9]+)?)?")
-            base_version="$prefix-SNAPSHOT"
+        local new_version
+        if [[ -n "${PINNED_PROJECT_VERSION:-}" ]]; then
+            new_version="$PINNED_PROJECT_VERSION"
+            log_info "Project does not have a branch version. Using pinned version: $new_version"
+        else
+            local branch_postfix
+            branch_postfix=$(echo "$BRANCH_NAME" | tr / -)
+            local version_without_snapshot="${PROJECT_VERSION%-SNAPSHOT}"
+            new_version="${version_without_snapshot}-${branch_postfix}-SNAPSHOT"
+            log_info "Project does not have a branch version. Changing to: $new_version"
         fi
-        local branch_postfix
-        branch_postfix=$(echo "$BRANCH_NAME" | tr / -)
-        new_version="${base_version%-SNAPSHOT}-${branch_postfix}-SNAPSHOT"
+        local pom_dir
+        pom_dir=$(dirname "$POM_FILE")
+        while IFS= read -r pom; do
+            if grep -q "$PROJECT_VERSION" "$pom"; then
+                log_info "Updating version in $pom"
+                # Replace only the project version (first <version> outside <parent>),
+                # not dependency versions that happen to match.
+                awk -v old="$PROJECT_VERSION" -v new="$new_version" '
+                    /<parent>/ { in_parent=1 }
+                    /<\/parent>/ { in_parent=0 }
+                    !in_parent && !done && index($0, "<version>" old "</version>") {
+                        sub("<version>" old "</version>", "<version>" new "</version>")
+                        done=1
+                    }
+                    { print }
+                ' "$pom" > "${pom}.tmp" && mv "${pom}.tmp" "$pom"
+            fi
+        done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
+        git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
+        ENFORCE_CHANGES_MADE="true"
     fi
-
-    if [[ "$PROJECT_VERSION" == "$new_version" ]]; then
-        log_info "Project version already correct for this branch: $PROJECT_VERSION"
-        ENFORCE_CHANGES_MADE="false"
-        return
-    fi
-
-    # Leave an existing branch-specific version alone unless it's an explicit pin
-    # or reset-inherited-version is enabled for this branch. This preserves the
-    # legacy behaviour of honouring manually-set / inherited versions by default.
-    if [[ "$PROJECT_VERSION" =~ $version_regexp
-          && -z "${PINNED_PROJECT_VERSION:-}"
-          && "${RESET_INHERITED_VERSION:-false}" != "true" ]]; then
-        log_info "Project already has a branch version ('$PROJECT_VERSION'); leaving unchanged."
-        log_info "(Set 'reset-inherited-version true' in $CONFIG_FILE to re-derive it for this branch.)"
-        ENFORCE_CHANGES_MADE="false"
-        return
-    fi
-
-    log_info "Changing project version to: $new_version"
-    local pom_dir
-    pom_dir=$(dirname "$POM_FILE")
-    while IFS= read -r pom; do
-        if grep -q "$PROJECT_VERSION" "$pom"; then
-            log_info "Updating version in $pom"
-            # Replace only the project version (first <version> outside <parent>),
-            # not dependency versions that happen to match.
-            awk -v old="$PROJECT_VERSION" -v new="$new_version" '
-                /<parent>/ { in_parent=1 }
-                /<\/parent>/ { in_parent=0 }
-                !in_parent && !done && index($0, "<version>" old "</version>") {
-                    sub("<version>" old "</version>", "<version>" new "</version>")
-                    done=1
-                }
-                { print }
-            ' "$pom" > "${pom}.tmp" && mv "${pom}.tmp" "$pom"
-        fi
-    done < <(find "$pom_dir" -name "pom.xml" -not -path "*/target/*")
-    git commit -a -m "Switched to branch-specific version.${COMMIT_MESSAGE_SUFFIX}"
-    ENFORCE_CHANGES_MADE="true"
 }
 
 # Apply pinned dependency versions from the config (feature branches).
