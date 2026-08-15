@@ -1,0 +1,111 @@
+spec:
+  inputs:
+    enforce-branch-version:
+      type: boolean
+      description: "Whether to enforce branch-specific versions on feature branches"
+    push-changes:
+      type: boolean
+      description: "Whether to push changes to the remote repository"
+    commit-message-suffix:
+      type: string
+      default: ""
+      description: "Text to add to the end of commit messages (e.g., '[skip ci]')"
+    git-user-name:
+      type: string
+      default: "gitlab-ci[bot]"
+      description: "Git user name for commits"
+    git-user-email:
+      type: string
+      default: "gitlab-ci[bot]@users.noreply.gitlab.com"
+      description: "Git user email for commits"
+    maven-args:
+      type: string
+      default: ""
+      description: "Deprecated. No longer used. Kept for backwards compatibility."
+    pom-file:
+      type: string
+      default: "pom.xml"
+      description: "Path to Maven POM file"
+    stage:
+      type: string
+      default: "prepare"
+      description: "Pipeline stage for this job"
+    image:
+      type: string
+      default: "maven:3.9-eclipse-temurin-17"
+      description: "Docker image to use for the job"
+    script-repo-path:
+      type: string
+      default: "maven-flow/prevent-artifact-overwrites"
+      description: "GitLab repository path containing the prevent-overwrites.sh script"
+    script-version:
+      type: string
+      default: "v1"
+      description: "Git ref (tag, branch, or SHA) to fetch the script from"
+    core-branches:
+      type: string
+      default: "main master develop release*"
+      description: "Space-separated list of branch patterns that should NOT receive a branch-specific version suffix (supports glob patterns like 'release*')"
+    rerun-on-change:
+      type: boolean
+      default: false
+      description: "When true, cancels the current pipeline and triggers a fresh one if prevent-overwrites pushed a new commit. Requires GITLAB_API_TOKEN CI variable."
+---
+prevent-overwrites:
+  stage: $[[ inputs.stage ]]
+  image: $[[ inputs.image ]]
+  variables:
+    ENFORCE_BRANCH_VERSION: $[[ inputs.enforce-branch-version ]]
+    PUSH_CHANGES: $[[ inputs.push-changes ]]
+    COMMIT_MESSAGE_SUFFIX: $[[ inputs.commit-message-suffix ]]
+    GIT_USER_NAME: $[[ inputs.git-user-name ]]
+    GIT_USER_EMAIL: $[[ inputs.git-user-email ]]
+    POM_FILE: $[[ inputs.pom-file ]]
+    SCRIPT_REPO_PATH: $[[ inputs.script-repo-path ]]
+    SCRIPT_VERSION: $[[ inputs.script-version ]]
+    CORE_BRANCHES: $[[ inputs.core-branches ]]
+    RERUN_ON_CHANGE: $[[ inputs.rerun-on-change ]]
+    OUTPUT_FILE: /tmp/prevent-overwrites-output.env
+  before_script:
+    - |
+      # Configure git for pushing
+      git config --global user.name "$GIT_USER_NAME"
+      git config --global user.email "$GIT_USER_EMAIL"
+      # Use GIT_PUSH_TOKEN (e.g. a project/group access token with write_repository scope) when
+      # provided, so pipelines can push to protected branches that block CI_JOB_TOKEN.
+      if [ -n "$GIT_PUSH_TOKEN" ]; then
+        git remote set-url origin "https://oauth2:${GIT_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      else
+        git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      fi
+      # Fetch the script via shallow clone of the component repository
+      SCRIPT_REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${SCRIPT_REPO_PATH}.git"
+      echo "Fetching script from: ${CI_SERVER_HOST}/${SCRIPT_REPO_PATH} ref: ${SCRIPT_VERSION}"
+      git clone --depth 1 --branch "$SCRIPT_VERSION" --single-branch "$SCRIPT_REPO_URL" /tmp/script-repo
+      chmod +x /tmp/script-repo/prevent-overwrites.sh
+  script:
+    - /tmp/script-repo/prevent-overwrites.sh
+    - |
+      # If prevent-overwrites made changes, cancel the current pipeline
+      # and trigger a fresh one on the latest commit.
+      if [ "$RERUN_ON_CHANGE" = "true" ]; then
+        CHANGES_MADE=$(grep '^changes-made=' "$OUTPUT_FILE" | cut -d= -f2)
+        if [ "$CHANGES_MADE" = "true" ]; then
+          echo "prevent-overwrites pushed a new commit. Canceling current pipeline and triggering a new one..."
+          curl --silent --fail-with-body --request POST \
+            --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "{\"ref\": \"$CI_COMMIT_REF_NAME\"}" \
+            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipeline"
+          curl --silent --request POST \
+            --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" \
+            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel"
+        fi
+      fi
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+  artifacts:
+    paths:
+      # Pass modified pom files to subsequent jobs (because subsequent jobs will not see the latest commit with changes)
+      - "**/pom.xml"
+
